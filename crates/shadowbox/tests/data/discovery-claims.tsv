@@ -1,0 +1,5 @@
+# Project claims checked against source-locked decoder rows.
+# claim location	claimed mnemonic	opcode high16
+# Resolved historical claim: families.rs formerly labelled 0x5c28 IMNMX;
+# source row 2012 establishes SHR. Historical GPU reports remain unchanged.
+crates/shadowbox/tests/support/families.rs:4381-4389	IMNMX	5c20

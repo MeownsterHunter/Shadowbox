@@ -1,0 +1,14 @@
+{
+  "repak_commit": "355b5f62f51959c7cc6dd5a51708646ef483065d",
+  "aes256_key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "files": {
+    "repak-ascii-plain.pak": "28e80e1a7313d5c4282f61df9d9bf61e86b681cca27840c5f90d1fb9cc3dc844",
+    "repak-ascii-encrypted.pak": "559c9d3b139a8be9ea78cf37d6d42c2d39b2bdce6bea11523d81fb1ea55e938a",
+    "repak-utf16-plain.pak": "f986bb2d21823f2b4426ea87f88e1a61aed324faf8ef20d07fdc0dc4ce4d1489",
+    "repak-utf16-encrypted.pak": "46829b3fac544d34b73879c72c46ad454a9a08a51919c6509c69e07088346b3c",
+    "repak-plain-entry-bad-hash.pak": "d716283981c93583d18266d19e9d8443071aaa1bfe3b166b3bb724be262cc391",
+    "repak-compressed-entry-bad-hash.pak": "7c305509f717646d8a15d63864aa92c41d08a34faeadb9bde584ab9710af094b",
+    "repak-legacy-entry-hash-disagreement.pak": "7d44631637bc73135934bf737ed962b7728d4e530e1c88b036fc49e0c1748f05",
+    "synthetic-integrity.pak": "d11b02bea4a1782f7d52ae0d00cf1fa6784000e30f6bbd8261577affdae44c3e"
+  }
+}

@@ -1,0 +1,21 @@
+/target/
+__pycache__/
+
+# Integration gate logs and temporary validation modules.
+/.merge-batch4/
+
+/.cargo-home/
+/.task-tmp/
+/.*.log
+/.texture-check/
+/.gpu-ms-check/
+
+/.merge-batch5/
+
+/.references/
+
+# Private work-profile receipts stay in this checkout.
+.task-rsi/
+
+# A local hosts file names your own machines; it never belongs in the repo.
+/tools/discovery/hosts.conf

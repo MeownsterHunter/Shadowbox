@@ -1,0 +1,11 @@
+# Example hosts file for the discovery tools (see hosts.sh for the format).
+# Copy it to tools/discovery/hosts.conf, or point DISCOVERY_HOSTS at your
+# copy, and select hosts with --hosts (e.g. --hosts local,buildbox or all).
+# Without a hosts file everything runs locally.
+#
+# store=DIR on one host keeps the shared nvdisasm answer store there; every
+# host's work then shares it (see the README, "The answer store").
+#
+# NAME      WORKERS  [speed=S] [ssh=TARGET]   [dir=DIR]        [nvdisasm=PATH]  [store=DIR]
+local       4
+buildbox    8        speed=0.6 ssh=user@buildbox dir=discovery-work nvdisasm=/opt/cuda/bin/nvdisasm store=discovery-store

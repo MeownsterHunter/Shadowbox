@@ -1,0 +1,37 @@
+# Rows the opcode-space sweep found outside every manifest row (tools/discovery/
+# family-sweep/new_rows.py); the bits below 48 are left to inference.
+# line	table	name	value	mask	baseline	evidence
+4000	discovered	cctlt	ebe0000000000000	ffe0000000000000	ebe0000000070000	opcode-space sweep: 12 prefixes, 49 words
+4001	discovered	nop	0000000000000000	ffff000000000000	0000000000070000	opcode-space sweep: 1 prefixes, 1 words
+4002	discovered	suatom	eb80000000000000	fffc000000000000	eb80000000070000	opcode-space sweep: 4 prefixes, 35 words
+4003	discovered	suatom	eb84000000000000	fffe000000000000	eb84000000070000	opcode-space sweep: 2 prefixes, 18 words
+4004	discovered	suatom	eb88000000000000	fffc000000000000	eb88000000070000	opcode-space sweep: 4 prefixes, 33 words
+4005	discovered	suatom	eb8c000000000000	fffe000000000000	eb8c000000070000	opcode-space sweep: 2 prefixes, 20 words
+4006	discovered	suatom	eb90000000000000	fffc000000000000	eb90000000070000	opcode-space sweep: 4 prefixes, 35 words
+4007	discovered	suatom	eb94000000000000	fffe000000000000	eb94000000070000	opcode-space sweep: 2 prefixes, 18 words
+4008	discovered	suatom	eb98000000000000	fffc000000000000	eb98000000070000	opcode-space sweep: 4 prefixes, 32 words
+4009	discovered	suatom	eb9c000000000000	fffe000000000000	eb9c000000070000	opcode-space sweep: 2 prefixes, 20 words
+4010	discovered	suatom	eba0000000000000	fffc000000000000	eba0000000070000	opcode-space sweep: 4 prefixes, 35 words
+4011	discovered	suatom	eba4000000000000	fffe000000000000	eba4000000070000	opcode-space sweep: 2 prefixes, 21 words
+4012	discovered	suatom	eba8000000000000	fffc000000000000	eba8000000070000	opcode-space sweep: 4 prefixes, 35 words
+4013	discovered	suatom	ebac000000000000	fffe000000000000	ebac000000070000	opcode-space sweep: 2 prefixes, 16 words
+4014	discovered	suatom	ebb0000000000000	fffc000000000000	ebb0000000070000	opcode-space sweep: 4 prefixes, 33 words
+4015	discovered	suatom	ebb4000000000000	fffe000000000000	ebb4000000070000	opcode-space sweep: 2 prefixes, 15 words
+4016	discovered	suatom	ebb8000000000000	fffc000000000000	ebb8000000070000	opcode-space sweep: 4 prefixes, 42 words
+4017	discovered	suatom	ebbc000000000000	fffe000000000000	ebbc000000070000	opcode-space sweep: 2 prefixes, 16 words
+4018	discovered	tex	c000000000000000	fe00000000000000	c000000000070000	opcode-space sweep: 448 prefixes, 8064 words
+4019	discovered	tex	c300000000000000	ff00000000000000	c300000000070000	opcode-space sweep: 224 prefixes, 4032 words
+4020	discovered	tex	c400000000000000	fe00000000000000	c400000000070000	opcode-space sweep: 512 prefixes, 8320 words
+4021	discovered	tex	c700000000000000	ff00000000000000	c700000000070000	opcode-space sweep: 256 prefixes, 4160 words
+4022	discovered	tex	de80000000000000	ffc0000000000000	de80000000070000	opcode-space sweep: 56 prefixes, 733 words
+4023	discovered	tld	dc00000000000000	fe00000000000000	dc00000000070000	opcode-space sweep: 448 prefixes, 8064 words
+4024	discovered	tld4	c800000000000000	ff80000000000000	c800000000070000	opcode-space sweep: 112 prefixes, 2016 words
+4025	discovered	tld4	c880000000000000	ffc0000000000000	c880000000070000	opcode-space sweep: 56 prefixes, 1008 words
+4026	discovered	tld4	c900000000000000	ff80000000000000	c900000000070000	opcode-space sweep: 112 prefixes, 2016 words
+4027	discovered	tld4	c980000000000000	ffc0000000000000	c980000000070000	opcode-space sweep: 56 prefixes, 1008 words
+4028	discovered	tld4	ca00000000000000	ff80000000000000	ca00000000070000	opcode-space sweep: 112 prefixes, 2016 words
+4029	discovered	tld4	ca80000000000000	ffc0000000000000	ca80000000070000	opcode-space sweep: 56 prefixes, 1008 words
+4030	discovered	tld4	cb00000000000000	ff80000000000000	cb00000000070000	opcode-space sweep: 112 prefixes, 2016 words
+4031	discovered	tld4	cb80000000000000	ffc0000000000000	cb80000000070000	opcode-space sweep: 56 prefixes, 1008 words
+4032	discovered	tld4	dec0000000000000	ffc0000000000000	dec0000000070000	opcode-space sweep: 56 prefixes, 423 words
+4033	discovered	txd	de00000000000000	ff80000000000000	de00000000070000	opcode-space sweep: 120 prefixes, 2048 words

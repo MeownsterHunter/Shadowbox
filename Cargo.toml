@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "crates/shadowbox",
+    "crates/shadowbox-cli",
+    "crates/shadowbox-novena",
+    "crates/shadowbox-novena-host",
+    "tools/generate-decoder-formats",
+    "tools/generate-spirv-layouts",
+    "tools/shadowbox-discovery",
+]
+exclude = ["vendor/novena/crates/novena"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "PolyForm-Noncommercial-1.0.0 OR AGPL-3.0-or-later"
+version = "0.1.0"

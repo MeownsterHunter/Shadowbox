@@ -1,0 +1,20 @@
+[package]
+name = "shadowbox"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "A clean-room Maxwell and Pascal shader translator to SPIR-V"
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+gpu-check = ["dep:ash"]
+
+[dependencies]
+ash = { version = "0.38", optional = true }
+sha2 = "0.10"
+rayon = "1.12"
+
+[build-dependencies]
+sha2 = "0.10"

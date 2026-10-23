@@ -1,0 +1,16 @@
+[package]
+name = "shadowbox-novena-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+novena = { path = "../../vendor/novena/crates/novena" }
+shadowbox-novena = { path = "../shadowbox-novena" }
+
+[dev-dependencies]
+libloading = "0.8"
