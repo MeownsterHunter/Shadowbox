@@ -55,10 +55,10 @@ fn independent_nth_free(used: u32, ordinal: usize) -> Option<u16> {
 fn independent_cpu_oracle_covers_smooth_flat_and_layout() {
     let masks = [0, 1, 0x55, 0x8000_001f, u32::MAX];
     let values = [
-        (0.0_f32, 0.5_f32, 2.0_f32),
-        (-1.25, 0.25, -0.75),
-        (f32::MIN_POSITIVE, 2.0, 0.5),
-        (-0.0, 1.0, -1.0),
+        (0.0_f32, 0.5_f32, 2.0_f32, 0x0000_0000, 0x0000_0000),
+        (-1.25, 0.25, -0.75, 0x3e70_0000, 0xbfa0_0000),
+        (f32::MIN_POSITIVE, 2.0, 0.5, 0x0080_0000, 0x0080_0000),
+        (-0.0, 1.0, -1.0, 0x0000_0000, 0x8000_0000),
     ];
     let mut evaluations = 0;
     for component in 0..4 {
@@ -69,14 +69,11 @@ fn independent_cpu_oracle_covers_smooth_flat_and_layout() {
             evaluations += 1;
         }
     }
-    for (input, reciprocal_w, multiplier) in values {
+    for (input, reciprocal_w, multiplier, expected_smooth, expected_flat) in values {
         let smooth = input * reciprocal_w * multiplier;
         let flat = input;
-        assert_eq!(
-            smooth.to_bits(),
-            (input * reciprocal_w * multiplier).to_bits()
-        );
-        assert_eq!(flat.to_bits(), input.to_bits());
+        assert_eq!(smooth.to_bits(), expected_smooth);
+        assert_eq!(flat.to_bits(), expected_flat);
         evaluations += 2;
     }
     assert_eq!(evaluations, 28);
