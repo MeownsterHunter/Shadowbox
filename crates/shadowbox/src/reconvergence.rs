@@ -153,8 +153,12 @@ impl Regions {
         }
         for x in xs {
             match x.kind {
-                InstructionKind::Brx(ops::Brx { .. })
-                | InstructionKind::OutsideBrx(ops::OutsideBrx { .. })
+                // A resolved BRX has a finite typed target table. Every one
+                // of those CFG edges passed the same token-entry, backedge,
+                // and loop-boundary checks above as a direct branch. An
+                // unresolved or outside-code BRX still has no closed region
+                // proof and must fail here.
+                InstructionKind::OutsideBrx(ops::OutsideBrx { .. })
                 | InstructionKind::BrxRegister(ops::BrxRegister { .. }) => {
                     return Err(error(x.address, Unreconverged::IndirectBranch));
                 }
@@ -175,6 +179,7 @@ impl Regions {
                     x.kind,
                     InstructionKind::Branch(ops::Branch { .. })
                         | InstructionKind::OutsideBranch(ops::OutsideBranch { .. })
+                        | InstructionKind::Brx(ops::Brx { .. })
                 )
             });
         Ok(Self {

@@ -41,6 +41,9 @@ pub use crate::stopped::{
 /// 18-21,158-160 and CodeGen/Spirv/SpirvGenerator.cs:194-261.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GraphicsState<'a> {
+    /// Raster shade-model state consumed by legacy IPA.SC colors. None fails
+    /// closed because Vulkan interpolation is fixed in the shader interface.
+    pub legacy_color_flat_shading: Option<bool>,
     /// Immutable cbuf1 snapshot used to specialize BRX targets. Bind these
     /// same words at execution and retranslate if they change (Ryujinx
     /// Decoders/Decoder.cs:26-34,518-552). None uses general BRX dispatch.

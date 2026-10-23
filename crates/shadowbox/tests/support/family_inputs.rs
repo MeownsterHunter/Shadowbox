@@ -105,6 +105,7 @@ pub fn family_context(family: Family) -> (Vec<u8>, GraphicsState<'static>) {
     header[15] = 7;
     header[16] = 3;
     let state = GraphicsState {
+        legacy_color_flat_shading: None,
         storage_buffers: &[],
         constant_buffer1: None,
         texture_bindings: &[],

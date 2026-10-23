@@ -10,8 +10,8 @@ use crate::headers::{
     FragmentHeader, GeometryHeader, Interface, Interpolation, ShaderHeader, Stage,
     TessellationControlHeader, TessellationEvaluationHeader, VertexHeader,
 };
-use crate::interface::{GeometryInput, GraphicsState, Stopped};
-use crate::ir::{ops, Instruction, InstructionKind};
+use crate::interface::{GeometryInput, GraphicsState, NoLayout, Stopped};
+use crate::ir::{ops, Instruction, InstructionKind, LegacyInterpolation, LegacyVarying};
 use crate::structure::ControlFlowGraph;
 
 /// What emission does once the header's stage is known.
@@ -65,6 +65,7 @@ pub(super) trait FragmentInterface: Copy {
     const INPUT_MAP_LOCATIONS: usize;
     /// The first used interpolation mode of a generic input location.
     fn input_mode(self, location: usize) -> Interpolation;
+    fn input_locations(self) -> u32;
     /// Written render-target components, 4 bits per target.
     fn targets(self) -> u32;
     fn writes_sample_mask(self) -> bool;
@@ -75,6 +76,9 @@ impl FragmentInterface for &FragmentHeader {
     const INPUT_MAP_LOCATIONS: usize = 32;
     fn input_mode(self, location: usize) -> Interpolation {
         FragmentHeader::input_mode(self, location)
+    }
+    fn input_locations(self) -> u32 {
+        FragmentHeader::input_locations(self)
     }
     fn targets(self) -> u32 {
         FragmentHeader::targets(self)
@@ -92,6 +96,9 @@ impl FragmentInterface for Headerless {
     fn input_mode(self, _: usize) -> Interpolation {
         Interpolation::Unused
     }
+    fn input_locations(self) -> u32 {
+        0
+    }
     fn targets(self) -> u32 {
         0xf
     }
@@ -107,6 +114,7 @@ impl FragmentInterface for Headerless {
 /// attribute loads it executes.
 pub(super) struct Inputs<'a> {
     pub xs: &'a [Instruction],
+    pub state: &'a GraphicsState<'a>,
     pub has_dynamic_input: bool,
     pub decorations: &'a mut Vec<(u32, u32, Interpolation)>,
     pub by_location: &'a mut HashMap<u16, u32>,
@@ -144,6 +152,10 @@ pub(super) trait Outputs {
     fn clip_distance(&self) -> Option<u32> {
         None
     }
+    /// The scalar PointSize output an exact typed AST writes.
+    fn point_size(&self) -> Option<u32> {
+        None
+    }
     fn store<L: Fn(&mut Vec<u32>, &mut u32, u32, u32) -> u32>(
         &self,
         _w: &mut Vec<u32>,
@@ -162,6 +174,7 @@ impl Outputs for InterfaceOutputs {}
 pub(super) struct VertexOutputs {
     position: u32,
     clip: Option<ClipDistances>,
+    point_size: Option<u32>,
 }
 
 /// The ClipDistance output (BuiltIn 3): a float array over lane 0 up to
@@ -177,11 +190,15 @@ impl Outputs for VertexOutputs {
     fn entry(&self, entry: &mut Vec<u32>) {
         entry.push(self.position);
         entry.extend(self.clip.iter().map(|clip| clip.variable));
+        entry.extend(self.point_size);
     }
     fn decorate(&self, annotations: &mut Vec<u32>) {
         inst(annotations, Op::Decorate, &[self.position, 11, 0]);
         if let Some(clip) = &self.clip {
             inst(annotations, Op::Decorate, &[clip.variable, 11, 3]);
+        }
+        if let Some(point_size) = self.point_size {
+            inst(annotations, Op::Decorate, &[point_size, 11, 1]);
         }
     }
     fn declare(&self, w: &mut Vec<u32>, t: OutputTypes<'_>) {
@@ -196,9 +213,15 @@ impl Outputs for VertexOutputs {
             inst(w, Op::Variable, &[clip.pointer, clip.variable, 3]);
         }
         inst(w, Op::TypePointer, &[t.pfloat_out, 3, t.float]);
+        if let Some(point_size) = self.point_size {
+            inst(w, Op::Variable, &[t.pfloat_out, point_size, 3]);
+        }
     }
     fn clip_distance(&self) -> Option<u32> {
         self.clip.as_ref().map(|clip| clip.variable)
+    }
+    fn point_size(&self) -> Option<u32> {
+        self.point_size
     }
 }
 
@@ -386,6 +409,14 @@ pub(super) trait ShaderStage: Copy {
         Interpolation::Unused
     }
 
+    fn legacy_input_locations(self) -> u32 {
+        0
+    }
+
+    fn legacy_output_locations(self) -> u32 {
+        0
+    }
+
     /// The geometry or tessellation interface, in those stages.
     fn stage_io(
         self,
@@ -449,6 +480,11 @@ pub(super) trait ShaderStage: Copy {
         Err(bad(x))
     }
 
+    /// AST through the mutable geometry output handle is geometry-only.
+    fn geometry_only(x: &Instruction) -> Result<(), Stopped> {
+        Err(bad(x))
+    }
+
     /// BAR.SYNC's execution and memory scopes and semantics, in the stages
     /// with a control barrier (Ryujinx Spirv/Instructions.cs:252-255).
     fn control_barrier(x: &Instruction) -> Result<(u32, u32), Stopped> {
@@ -466,6 +502,12 @@ fn loads_generic(xs: &[Instruction], location: u16) -> bool {
                 && (a - 0x80) / 16 == location
         }))
     })
+}
+
+fn legacy_location(varying: LegacyVarying, used: u32) -> Result<u16, Stopped> {
+    varying
+        .location(used)
+        .ok_or(Stopped::NoLayout(NoLayout::LegacyVaryingLocations))
 }
 
 fn vertex_pipeline_addresses<'a>(
@@ -498,6 +540,10 @@ impl ShaderStage for Vertex<'_> {
     const CAPABILITIES: &'static [u32] = &[];
     type Outputs = VertexOutputs;
 
+    fn legacy_output_locations(self) -> u32 {
+        self.0.maps().output_locations()
+    }
+
     fn resolve_addresses<'a>(
         xs: &'a [Instruction],
         cfg: &ControlFlowGraph,
@@ -510,6 +556,7 @@ impl ShaderStage for Vertex<'_> {
     /// header marks (vertex input and output maps).
     fn declare_inputs(self, i: Inputs<'_>, n: &mut impl FnMut() -> u32) {
         let (inputs, outputs) = (self.0.maps().inputs(), self.0.maps().outputs());
+        let used_outputs = self.0.maps().output_locations();
         for location in 0..32u32 {
             let referenced = loads_generic(i.xs, location as u16);
             if !i.has_dynamic_input && ((inputs >> (location * 4)) & 0xf != 0 || referenced) {
@@ -520,6 +567,23 @@ impl ShaderStage for Vertex<'_> {
             }
             if (outputs >> (location * 4)) & 0xf != 0 {
                 i.vertex_outputs.push((location, n()));
+            }
+        }
+        for varying in i.xs.iter().filter_map(|x| match x.kind {
+            InstructionKind::LegacyVaryingStore(ops::LegacyVaryingStore { varying, .. }) => {
+                Some(varying)
+            }
+            _ => None,
+        }) {
+            if let Ok(location) = legacy_location(varying, used_outputs) {
+                let location = u32::from(location);
+                if !i
+                    .vertex_outputs
+                    .iter()
+                    .any(|(existing, _)| *existing == location)
+                {
+                    i.vertex_outputs.push((location, n()));
+                }
             }
         }
         for (address, builtin) in [(0x2f8u16, 43u32), (0x2fcu16, 42u32)] {
@@ -553,6 +617,10 @@ impl ShaderStage for Vertex<'_> {
                 pointer: n(),
                 length,
             }),
+            point_size: xs
+                .iter()
+                .any(|x| matches!(x.kind, InstructionKind::PointSizeStore(_)))
+                .then(&mut *n),
         }
     }
 
@@ -621,10 +689,41 @@ impl<F: FragmentInterface> ShaderStage for Fragment<F> {
             i.decorations.push((input, location as u32, interpolation));
             i.by_location.insert(location as u16, input);
         }
+        let used = self.0.input_locations();
+        for (varying, interpolation) in i.xs.iter().filter_map(|x| match x.kind {
+            InstructionKind::LegacyVaryingLoad(ops::LegacyVaryingLoad {
+                varying,
+                interpolation,
+                ..
+            }) => Some((varying, interpolation)),
+            _ => None,
+        }) {
+            let Ok(location) = legacy_location(varying, used) else {
+                continue;
+            };
+            if i.by_location.contains_key(&location) {
+                continue;
+            }
+            let input = n();
+            let interpolation = if interpolation == LegacyInterpolation::State
+                && i.state.legacy_color_flat_shading == Some(true)
+            {
+                Interpolation::Constant
+            } else {
+                Interpolation::Perspective
+            };
+            i.decorations
+                .push((input, u32::from(location), interpolation));
+            i.by_location.insert(location, input);
+        }
     }
 
     fn input_mode(self, location: usize) -> Interpolation {
         self.0.input_mode(location)
+    }
+
+    fn legacy_input_locations(self) -> u32 {
+        self.0.input_locations()
     }
 
     fn outputs(
@@ -723,6 +822,10 @@ impl ShaderStage for Geometry<'_> {
 
     fn outputs(self, _: &[Instruction], _: u32, _: &mut impl FnMut() -> u32) -> InterfaceOutputs {
         InterfaceOutputs
+    }
+
+    fn geometry_only(_: &Instruction) -> Result<(), Stopped> {
+        Ok(())
     }
 }
 

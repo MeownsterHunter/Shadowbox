@@ -1597,6 +1597,87 @@ pub enum Attribute {
     PatchFixedFunction,
 }
 
+/// A legacy fixed-function varying after decode, before it is assigned a free
+/// Vulkan user location.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum LegacyVarying {
+    FrontColorDiffuse { component: u8 },
+    FrontColorSpecular { component: u8 },
+    BackColorDiffuse { component: u8 },
+    BackColorSpecular { component: u8 },
+    FogCoordinate,
+    TextureCoordinate { index: u8, component: u8 },
+}
+
+impl LegacyVarying {
+    /// Only source-observed legacy varying lanes are admitted.
+    pub const fn decode(address: u16) -> Option<Self> {
+        match address {
+            0x280..=0x28c if address.is_multiple_of(4) => Some(Self::FrontColorDiffuse {
+                component: ((address - 0x280) / 4) as u8,
+            }),
+            0x290..=0x29c if address.is_multiple_of(4) => Some(Self::FrontColorSpecular {
+                component: ((address - 0x290) / 4) as u8,
+            }),
+            0x2a0..=0x2ac if address.is_multiple_of(4) => Some(Self::BackColorDiffuse {
+                component: ((address - 0x2a0) / 4) as u8,
+            }),
+            0x2b0..=0x2bc if address.is_multiple_of(4) => Some(Self::BackColorSpecular {
+                component: ((address - 0x2b0) / 4) as u8,
+            }),
+            0x2e8 => Some(Self::FogCoordinate),
+            0x300..=0x37c if address.is_multiple_of(4) => Some(Self::TextureCoordinate {
+                index: ((address - 0x300) / 16) as u8,
+                component: ((address & 0xf) / 4) as u8,
+            }),
+            _ => None,
+        }
+    }
+
+    pub const fn component(self) -> u8 {
+        match self {
+            Self::FrontColorDiffuse { component }
+            | Self::FrontColorSpecular { component }
+            | Self::BackColorDiffuse { component }
+            | Self::BackColorSpecular { component }
+            | Self::TextureCoordinate { component, .. } => component,
+            Self::FogCoordinate => 0,
+        }
+    }
+
+    /// With native Vulkan Layer support, TexCoord0 is the sixth free user
+    /// location (Ryujinx AttributeUsage.cs:131-151).
+    pub const fn free_ordinal(self) -> u8 {
+        match self {
+            Self::FrontColorDiffuse { .. } => 1,
+            Self::FrontColorSpecular { .. } => 2,
+            Self::BackColorDiffuse { .. } => 3,
+            Self::BackColorSpecular { .. } => 4,
+            Self::FogCoordinate => 0,
+            Self::TextureCoordinate { index, .. } => 5 + index,
+        }
+    }
+
+    pub fn location(self, used: u32) -> Option<u16> {
+        let mut unavailable = used;
+        for _ in 0..self.free_ordinal() {
+            let location = (!unavailable).trailing_zeros();
+            if location == 32 {
+                return None;
+            }
+            unavailable |= 1 << location;
+        }
+        let location = (!unavailable).trailing_zeros();
+        (location < 32).then_some(location as u16)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LegacyInterpolation {
+    Pass,
+    State,
+}
+
 /// Ryujinx ShaderStage values as a bit set (AttributeMap.cs:11-25).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Stages(u8);
@@ -1919,6 +2000,7 @@ instruction_kinds!(
     IpaPass,
     IpaPassMulW,
     IpaSaturate,
+    LegacyVaryingLoad,
     Mov,
     Ldc,
     IAdd,
@@ -1992,6 +2074,7 @@ instruction_kinds!(
     MemoryBarrier,
     ControlBarrier,
     GeometryOut,
+    GeometryOutHandle,
     GeometryOutDynamic,
     AttributeAddress,
     IsbeRead,
@@ -2003,6 +2086,9 @@ instruction_kinds!(
     UnmappedAttributeLoad,
     IndexedPatchLoad,
     AttributeStore,
+    GeometryAttributeStore,
+    LegacyVaryingStore,
+    PointSizeStore,
     PhysicalAttributeStore,
     Texture,
     SurfaceAtomic,
@@ -2583,6 +2669,8 @@ pub trait AttributeIo {
     fn patch_bank(&mut self, bank: AttributeBank) -> Result<(), Self::Error>;
     /// A static output word at `address`, in the patch bank or not.
     fn store(&mut self, address: u16, patch: bool) -> Result<(), Self::Error>;
+    /// A static scalar output through the geometry stage's current handle.
+    fn geometry_store(&mut self, address: u16) -> Result<(), Self::Error>;
 }
 
 macro_rules! kind_calls {
@@ -2969,6 +3057,31 @@ impl Kind for ops::IpaSaturate {
     fn source_slots(&self) -> Sources {
         let ops::IpaSaturate { inv_w, .. } = *self;
         Sources::new([inv_w, Source::Immediate(0), Source::Immediate(0)], 1)
+    }
+}
+
+impl Kind for ops::LegacyVaryingLoad {
+    fn require<M: Requirements>(&self, module: &mut M) {
+        module.frag_coord();
+    }
+
+    fn may_write_predicate(&self) -> bool {
+        false
+    }
+
+    fn written_registers(&self) -> Written {
+        Written::new(self.dst, 1)
+    }
+
+    fn source_slots(&self) -> Sources {
+        Sources::new(
+            [
+                Source::Register(self.inv_w),
+                Source::Immediate(0),
+                Source::Immediate(0),
+            ],
+            u8::from(self.interpolation == LegacyInterpolation::State),
+        )
     }
 }
 
@@ -4667,6 +4780,40 @@ impl Kind for ops::GeometryOut {
     }
 }
 
+impl Kind for ops::GeometryOutHandle {
+    fn stream_marks(&self) -> StreamMarks {
+        let ops::GeometryOutHandle {
+            stream, emit, cut, ..
+        } = *self;
+        let stream_bit = stream & 7;
+        StreamMarks {
+            outs: true,
+            unencodable: (stream > 3) | !(emit | cut),
+            streams: 1 << stream_bit,
+            emitted: u8::from(emit) << stream_bit,
+        }
+    }
+
+    fn may_write_predicate(&self) -> bool {
+        false
+    }
+
+    fn written_registers(&self) -> Written {
+        Written::new(self.dst, 1)
+    }
+
+    fn source_slots(&self) -> Sources {
+        Sources::new(
+            [
+                Source::Register(self.handle),
+                Source::Immediate(0),
+                Source::Immediate(0),
+            ],
+            1,
+        )
+    }
+}
+
 impl Kind for ops::AttributeAddress {
     fn prove_address(&self, proven: &mut ProvenAddresses) {
         // Only an AL2P without a register offset gives a known address, and
@@ -5041,6 +5188,77 @@ impl Kind for ops::AttributeStore {
             patch: _,
         } = *self;
         false
+    }
+}
+
+impl Kind for ops::GeometryAttributeStore {
+    fn declare_attributes<A: AttributeIo>(&self, io: &mut A) -> Result<(), A::Error> {
+        io.geometry_store(self.address)
+    }
+
+    fn used_outputs(&self) -> u32 {
+        generic_outputs(self.address, 1)
+    }
+
+    fn guards_whole(&self) -> bool {
+        true
+    }
+
+    fn may_write_predicate(&self) -> bool {
+        false
+    }
+
+    fn source_slots(&self) -> Sources {
+        Sources::new(
+            [
+                Source::Register(self.data),
+                Source::Register(self.handle),
+                Source::Immediate(0),
+            ],
+            2,
+        )
+    }
+}
+
+impl Kind for ops::LegacyVaryingStore {
+    fn guards_whole(&self) -> bool {
+        true
+    }
+
+    fn may_write_predicate(&self) -> bool {
+        false
+    }
+
+    fn source_slots(&self) -> Sources {
+        Sources::new(
+            [
+                Source::Register(self.data),
+                Source::Immediate(0),
+                Source::Immediate(0),
+            ],
+            1,
+        )
+    }
+}
+
+impl Kind for ops::PointSizeStore {
+    fn guards_whole(&self) -> bool {
+        true
+    }
+
+    fn may_write_predicate(&self) -> bool {
+        false
+    }
+
+    fn source_slots(&self) -> Sources {
+        Sources::new(
+            [
+                Source::Register(self.data),
+                Source::Immediate(0),
+                Source::Immediate(0),
+            ],
+            1,
+        )
     }
 }
 
@@ -5880,6 +6098,17 @@ pub mod ops {
         pub dst: Register,
         pub addr: u16,
         pub inv_w: Source,
+    }
+
+    /// A source-locked PASS load from a legacy texture-coordinate lane.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub struct LegacyVaryingLoad {
+        pub dst: Register,
+        pub varying: LegacyVarying,
+        pub interpolation: LegacyInterpolation,
+        /// Perspective multiplier used by SC while shade-model state is
+        /// smooth; ignored by PASS and flat SC.
+        pub inv_w: Register,
     }
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -6758,6 +6987,16 @@ pub mod ops {
         pub stream: u8,
     }
 
+    /// OUT that consumes and advances the geometry current-output handle.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub struct GeometryOutHandle {
+        pub dst: Register,
+        pub handle: Register,
+        pub emit: bool,
+        pub cut: bool,
+        pub stream: u8,
+    }
+
     /// OUT whose stream a register or cbuf word holds (Mesa
     /// sm50.rs:3257-3284,361-372; envytools gm107.c:1875,1907). A
     /// block-local constant proof names the stream; until then it is
@@ -6879,6 +7118,29 @@ pub mod ops {
         pub offset: Option<Register>,
         pub components: u8,
         pub patch: bool,
+    }
+
+    /// A scalar AST through the geometry stage's current output handle.
+    /// Maxwell carries that handle in a GPR; SPIR-V represents the same
+    /// state as the current private output bank published by OUT.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub struct GeometryAttributeStore {
+        pub data: Register,
+        pub address: u16,
+        pub handle: Register,
+    }
+
+    /// A scalar vertex output to a decoded legacy varying lane.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub struct LegacyVaryingStore {
+        pub data: Register,
+        pub varying: LegacyVarying,
+    }
+
+    /// The exact source-observed scalar vertex AST to BuiltIn PointSize.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub struct PointSizeStore {
+        pub data: Register,
     }
 
     /// AST with a register offset: the address is chosen at run time
@@ -7312,6 +7574,15 @@ impl fmt::Display for ops::IpaSaturate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ops::IpaSaturate { dst, .. } = *self;
         write!(f, "IPA.SAT R{}", dst.0)
+    }
+}
+impl fmt::Display for ops::LegacyVaryingLoad {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "IPA.{:?} R{}, {:?}",
+            self.interpolation, self.dst.0, self.varying
+        )
     }
 }
 impl fmt::Display for ops::IpaPass {
@@ -8374,6 +8645,22 @@ impl fmt::Display for ops::GeometryOut {
         write!(f, "OUT emit={emit} cut={cut} stream={stream}")
     }
 }
+impl fmt::Display for ops::GeometryOutHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ops::GeometryOutHandle {
+            dst,
+            handle,
+            emit,
+            cut,
+            stream,
+        } = *self;
+        write!(
+            f,
+            "OUT R{}, R{} emit={emit} cut={cut} stream={stream}",
+            dst.0, handle.0
+        )
+    }
+}
 impl fmt::Display for ops::AttributeAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ops::AttributeAddress {
@@ -8544,6 +8831,25 @@ impl fmt::Display for ops::AttributeStore {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ops::AttributeStore { data, address, .. } = *self;
         write!(f, "ATTR_STORE R{}, a{}", data.0, address)
+    }
+}
+impl fmt::Display for ops::GeometryAttributeStore {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "AST.GS R{}, a[0x{:x}], R{}",
+            self.data.0, self.address, self.handle.0
+        )
+    }
+}
+impl fmt::Display for ops::LegacyVaryingStore {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ATTR_STORE R{}, {:?}", self.data.0, self.varying)
+    }
+}
+impl fmt::Display for ops::PointSizeStore {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ATTR_STORE R{}, PointSize", self.data.0)
     }
 }
 impl fmt::Display for ops::PhysicalAttributeStore {

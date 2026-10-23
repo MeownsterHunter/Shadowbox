@@ -6358,6 +6358,78 @@ fn gpu_brx_condition_lt_slice_exact() {
 }
 
 #[test]
+#[ignore = "RADV hardware; resolved BRX target regions from strict-cache case 03"]
+fn gpu_brx_resolved_reconvergence_exact() {
+    use shadowbox::{
+        decoder::decode_word,
+        ir::{BrxBase, Instruction, InstructionKind, Register},
+    };
+
+    const SITE: u32 = 0x1c90;
+    const RAW: u64 = 0xe250_0ffe_3687_3f0f;
+    const LOADED: [u32; 3] = [0x1c98, 0x1da0, 0x1ea0];
+    const TARGETS: [u32; 3] = [0x1c98, 0x1da8, 0x1ea8];
+    let move_immediate = |address: u32, value: u32| {
+        let raw = 0x0100_u64 << 48 | u64::from(value) << 20 | 15 << 12 | 7 << 16 | 240;
+        decode_word([raw as u32, (raw >> 32) as u32], address)
+    };
+    let vote = |address: u32| {
+        let raw = 0x50d8_u64 << 48 | 2 << 45 | 1 << 39 | 7 << 16 | 50;
+        decode_word([raw as u32, (raw >> 32) as u32], address)
+    };
+    let exit = |address: u32| {
+        let raw = 0xe300_u64 << 48 | 7 << 16 | 15;
+        decode_word([raw as u32, (raw >> 32) as u32], address)
+    };
+
+    let base = BrxBase::decode(SITE, ((RAW >> 20) & 0xff_ffff) as u32);
+    let mut xs = vec![Instruction {
+        address: SITE,
+        predicate: None,
+        kind: InstructionKind::brx(Register(63), base, LOADED[0], &LOADED[1..]),
+    }];
+    for (index, target) in TARGETS.into_iter().enumerate() {
+        xs.push(move_immediate(target, index as u32 + 1));
+        xs.push(vote(target + 8));
+        xs.push(exit(target + 16));
+    }
+    xs.sort_by_key(|instruction| instruction.address);
+
+    let header = headers::parse(&[0; 32]).unwrap();
+    let mut module = emit_unoptimized_with_header(&xs, Some(&header)).unwrap();
+    assert!(module.requires_maximal_reconvergence);
+    compute::observe_group(&mut module, 1);
+    let raw_module = module.words.clone();
+    module.optimize();
+
+    let mut states = inputs(RAW);
+    for (case, state) in states.iter_mut().enumerate() {
+        state[63] = LOADED[case % LOADED.len()];
+        state[257] = u32::from(case.is_multiple_of(2));
+        state[263] = 1;
+    }
+    let gpu = Compute::new();
+    let report = work().join("brx-resolved-reconvergence");
+    fs::create_dir_all(&report).unwrap();
+    let mut executions = 0;
+    for (variant, words) in [("raw", &raw_module), ("optimized", &module.words)] {
+        validate(words, &report.join(format!("{variant}.spv")));
+        for (case, actual) in gpu.run(words, &states).iter().enumerate() {
+            assert_eq!(actual[240], case as u32 % 3 + 1, "{variant}/case{case}");
+            executions += 1;
+        }
+    }
+    fs::write(
+        report.join("coverage.tsv"),
+        "site\tword\traw\toptimized\texecutions\tdifferences\tmissing\n\
+         0x1c90\te2500ffe36873f0f\tPASS\tPASS\t96\t0\t0\n",
+    )
+    .unwrap();
+    fs::write(report.join("complete.txt"), format!("1\t{executions}\t0\n")).unwrap();
+    assert_eq!(executions, 96);
+}
+
+#[test]
 #[ignore = "RADV hardware; oracle gaps and defined input domains"]
 fn gpu_gap_semantic_edges() {
     let mut report = Report::new("gap-edges");

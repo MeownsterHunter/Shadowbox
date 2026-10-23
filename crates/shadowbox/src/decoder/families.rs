@@ -5,7 +5,9 @@
 
 use super::edge::{forms, unknown, Decode, Field, Fields, Word};
 use super::*;
-use crate::ir::{DoubleSetResult, FlagBank, IMadSpType, MulNegation, Named};
+use crate::ir::{
+    DoubleSetResult, FlagBank, IMadSpType, LegacyInterpolation, LegacyVarying, MulNegation, Named,
+};
 
 mod half;
 use half::*;
@@ -1959,6 +1961,26 @@ fn ipa_saturate(x: Word) -> Instruction {
 fn ipa(x: Word) -> Instruction {
     IPA_PLAIN[b(x.r, 54, 2) as usize](x)
 }
+
+fn legacy_texcoord_pass(x: Word) -> Instruction {
+    x.guarded(InstructionKind::LegacyVaryingLoad(ops::LegacyVaryingLoad {
+        dst: Register(b(x.r, 0, 8) as u8),
+        varying: LegacyVarying::decode(b(x.r, 28, 10) as u16)
+            .expect("exact legacy TexCoord0 admission"),
+        interpolation: LegacyInterpolation::Pass,
+        inv_w: Register(255),
+    }))
+}
+
+fn legacy_front_color_sc(x: Word) -> Instruction {
+    x.guarded(InstructionKind::LegacyVaryingLoad(ops::LegacyVaryingLoad {
+        dst: Register(b(x.r, 0, 8) as u8),
+        varying: LegacyVarying::decode(b(x.r, 28, 10) as u16)
+            .expect("exact FrontColorDiffuse admission"),
+        interpolation: LegacyInterpolation::State,
+        inv_w: Register(b(x.r, 20, 8) as u8),
+    }))
+}
 /// 0 Unknown, 1 plain, 2 SAT PASS/CONSTANT, 3 SAT MUL.
 const IPA_FIELDS0: Fields<8> = Fields([
     Field::ones(8, 8),
@@ -1999,6 +2021,26 @@ const fn ipa_rule1(r: u64) -> u8 {
 }
 const IPA_FORMS1: [u8; IPA_FIELDS1.len()] = forms!(IPA_FIELDS1, ipa_rule1);
 fn read_ipa(x: Word) -> Instruction {
+    if matches!(
+        x.r,
+        0xe0c3_ffa8_0047_ff00
+            | 0xe0c3_ffa8_4047_ff01
+            | 0xe0c3_ffa8_8047_ff02
+            | 0xe0c3_ffa8_c047_ff03
+    ) {
+        return legacy_front_color_sc(x);
+    }
+    if matches!(
+        x.r,
+        0xe003_ffb0_0ff7_ff00
+            | 0xe003_ffb0_0ff7_ff04
+            | 0xe003_ffb0_4ff7_ff01
+            | 0xe003_ffb0_8ff7_ff02
+            | 0xe003_ffb0_cff7_ff04
+            | 0xe003_ffb0_4ff7_ff05
+    ) {
+        return legacy_texcoord_pass(x);
+    }
     // Rows: IPA_FORMS0; columns: IPA_FORMS1.
     let paths: [Decode; 16] = [
         unknown,
@@ -4562,6 +4604,16 @@ fn geometry_out_of(x: Word, stream: u8) -> Instruction {
 fn geometry_out(x: Word) -> Instruction {
     geometry_out_of(x, 0)
 }
+fn geometry_out_handle(x: Word) -> Instruction {
+    let r = x.r;
+    x.guarded(InstructionKind::GeometryOutHandle(ops::GeometryOutHandle {
+        dst: Register(b(r, 0, 8) as u8),
+        handle: Register(b(r, 8, 8) as u8),
+        emit: b(r, 39, 1) != 0,
+        cut: b(r, 40, 1) != 0,
+        stream: 0,
+    }))
+}
 fn geometry_out_immediate(x: Word) -> Instruction {
     geometry_out_of(x, b(x.r, 20, 19) as u8)
 }
@@ -4608,6 +4660,9 @@ const fn geometry_out_rule(r: u64) -> u8 {
 const GEOMETRY_OUT_FORMS: [u8; GEOMETRY_OUT_FIELDS.len()] =
     forms!(GEOMETRY_OUT_FIELDS, geometry_out_rule);
 fn read_geometry_out(x: Word) -> Instruction {
+    if x.r == 0xfbe0_0080_0ff7_0000 {
+        return geometry_out_handle(x);
+    }
     let paths: [Decode; 3] = [unknown, geometry_out, geometry_out_register];
     paths[(GEOMETRY_OUT_FORMS[GEOMETRY_OUT_FIELDS.index(x.r)]) as usize](x)
 }
@@ -4923,9 +4978,108 @@ fn attribute_load_vertex(x: Word) -> Instruction {
 // 475-479,1883. Patch forms
 // have the same static byte-slot bounds as ALd above. Bit30 is
 // rejected for the same ten/eleven-bit address discrepancy.
+const GEOMETRY_CURRENT_HANDLE_AST: [u64; 19] = [
+    0xeff0_0000_0707_ff01,
+    0xeff0_0000_0747_ff02,
+    0xeff0_0000_0787_ff03,
+    0xeff0_0000_07c7_ff05,
+    0xeff0_0000_0807_ff06,
+    0xeff0_0000_0847_ff07,
+    0xeff0_0000_0647_ff09,
+    0xeff0_0000_0907_ff09,
+    0xeff0_0000_0707_ff0a,
+    0xeff0_0000_0747_ff01,
+    0xeff0_0000_0787_ff02,
+    0xeff0_0000_07c7_ff03,
+    0xeff0_0000_0807_ff05,
+    0xeff0_0000_0847_ff06,
+    0xeff0_0000_0647_ff07,
+    0xeff0_0000_0907_ff07,
+    0xeff0_0000_0707_ff09,
+    0xeff0_0000_0647_ff0a,
+    0xeff0_0000_0907_ff0a,
+];
+const LEGACY_VARYING_AST: [u64; 49] = [
+    0xeff0_7f80_2807_ff2a,
+    0xeff0_7f80_2847_ff2b,
+    0xeff0_7f80_2887_ff2c,
+    0xeff0_7f80_28c7_ff29,
+    0xeff0_7f80_2907_ff26,
+    0xeff0_7f80_2947_ff25,
+    0xeff0_7f80_2987_ff24,
+    0xeff0_7f80_29c7_ff23,
+    0xeff0_7f80_2a07_ff2a,
+    0xeff0_7f80_2a47_ff2b,
+    0xeff0_7f80_2a87_ff2c,
+    0xeff0_7f80_2ac7_ff29,
+    0xeff0_7f80_2b07_ff26,
+    0xeff0_7f80_2b47_ff25,
+    0xeff0_7f80_2b87_ff24,
+    0xeff0_7f80_2bc7_ff23,
+    0xeff0_7f80_2e87_ff06,
+    0xeff0_7f80_3007_ff22,
+    0xeff0_7f80_3047_ff21,
+    0xeff0_7f80_3087_ff20,
+    0xeff0_7f80_30c7_ff1f,
+    0xeff0_7f80_3107_ff1e,
+    0xeff0_7f80_3147_ff1d,
+    0xeff0_7f80_3187_ff19,
+    0xeff0_7f80_31c7_ff1c,
+    0xeff0_7f80_3207_ff1b,
+    0xeff0_7f80_3247_ff1a,
+    0xeff0_7f80_3287_ff15,
+    0xeff0_7f80_32c7_ff18,
+    0xeff0_7f80_3307_ff17,
+    0xeff0_7f80_3347_ff16,
+    0xeff0_7f80_3387_ff11,
+    0xeff0_7f80_33c7_ff14,
+    0xeff0_7f80_3407_ff13,
+    0xeff0_7f80_3447_ff12,
+    0xeff0_7f80_3487_ff0d,
+    0xeff0_7f80_34c7_ff10,
+    0xeff0_7f80_3507_ff0f,
+    0xeff0_7f80_3547_ff0e,
+    0xeff0_7f80_3587_ff11,
+    0xeff0_7f80_35c7_ff0c,
+    0xeff0_7f80_3607_ff0b,
+    0xeff0_7f80_3647_ff0a,
+    0xeff0_7f80_3687_ff08,
+    0xeff0_7f80_36c7_ff19,
+    0xeff0_7f80_3707_ff03,
+    0xeff0_7f80_3747_ff02,
+    0xeff0_7f80_3787_ff01,
+    0xeff0_7f80_37c7_ff00,
+];
+
 fn attribute_store(x: Word) -> Instruction {
     let r = x.r;
     let d = Register(b(r, 0, 8) as u8);
+
+    if GEOMETRY_CURRENT_HANDLE_AST.contains(&r) {
+        return x.guarded(InstructionKind::GeometryAttributeStore(
+            ops::GeometryAttributeStore {
+                data: d,
+                address: b(r, 20, 10) as u16,
+                handle: Register(b(r, 39, 8) as u8),
+            },
+        ));
+    }
+
+    if r == 0xeff0_7f80_06c7_ff05 {
+        return x.guarded(InstructionKind::PointSizeStore(ops::PointSizeStore {
+            data: d,
+        }));
+    }
+
+    if LEGACY_VARYING_AST.contains(&r) {
+        return x.guarded(InstructionKind::LegacyVaryingStore(
+            ops::LegacyVaryingStore {
+                data: d,
+                varying: LegacyVarying::decode(b(r, 20, 10) as u16)
+                    .expect("exact legacy color lane"),
+            },
+        ));
+    }
 
     x.guarded(InstructionKind::AttributeStore(ops::AttributeStore {
         data: d,
@@ -4963,6 +5117,9 @@ const fn attribute_store_rule1(r: u64) -> u8 {
 const ATTRIBUTE_STORE_FORMS1: [u8; ATTRIBUTE_STORE_FIELDS1.len()] =
     forms!(ATTRIBUTE_STORE_FIELDS1, attribute_store_rule1);
 fn read_attribute_store(x: Word) -> Instruction {
+    if GEOMETRY_CURRENT_HANDLE_AST.contains(&x.r) {
+        return attribute_store(x);
+    }
     let paths: [Decode; 2] = [unknown, attribute_store];
     paths[(ATTRIBUTE_STORE_FORMS0[ATTRIBUTE_STORE_FIELDS0.index(x.r)]
         & ATTRIBUTE_STORE_FORMS1[ATTRIBUTE_STORE_FIELDS1.index(x.r)]) as usize](x)

@@ -40,7 +40,7 @@ server and were skipped. CPU spirv-val validation is separate.
 
 | Source row | Table / mnemonic | Match / mask | Baseline | Decoded kinds (samples) | Unknown | Accepted reserved | Unknown reason |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `gm107.c:1875` | root / out | `fbe0000000000000` / `fff8000000000000` | Unknown |  | 61 (1 reserved) | 0 | not implemented yet: instruction / operand / mode; reserved: source table OOPS |
+| `gm107.c:1875` | root / out | `fbe0000000000000` / `fff8000000000000` | Unknown | GeometryOutHandle (1) | 60 (1 reserved) | 0 | not implemented yet: instruction / operand / mode; reserved: source table OOPS |
 | `gm107.c:1876` | root / out | `f6e0000000000000` / `fef8000000000000` | Unknown |  | 74 (1 reserved) | 0 | not implemented yet: instruction / operand / mode; reserved: source table OOPS |
 | `gm107.c:1877` | root / sync | `f0f8000000000000` / `fff8000000000000` | PopJump | PopJump (53) | 6 (0 reserved) | 0 | not implemented yet: instruction / operand / mode |
 | `gm107.c:1878` | root / depbar | `f0f0000000000000` / `fff8000000000000` | Nop | Nop (165) | 0 (0 reserved) | 0 |  |

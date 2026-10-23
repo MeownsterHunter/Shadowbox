@@ -8,7 +8,7 @@ mod stages;
 mod texture;
 use crate::fast_hash::{HashMap, HashSet};
 use crate::headers::{Interface, Interpolation, ShaderHeader, Stage};
-use crate::interface::Stopped;
+use crate::interface::{NoLayout, Stopped};
 use crate::ir::ops;
 use crate::ir::FlagBank;
 use crate::ir::{
@@ -16,10 +16,10 @@ use crate::ir::{
     DoubleMinMaxOperation, DoubleSetResult, DoubleSource, DoubleSourceModifier, F2fDestination,
     F2fSource, FAddModifiers, FMulModifiers, FMulRounding, FMulScale, FloatCompare, FloatFlags,
     Flush, GatherOffsets, HalfFlush, HalfOp, Instruction, InstructionKind, IntCompare,
-    IntegerCompareMode, IntegerWidth, InterpFreq, InterpLoc, LdcWidth, LogicOp, LsSize2,
-    PredicateOp, PredicateOutput, Register, RegisterPair, Relation, RoundingMode, Saturation,
-    SetOp, SetResult, ShuffleMode, Signedness, Source, SourceAbs, SourceNegation, TexOp,
-    VideoElement, VideoSelection, XmadCop,
+    IntegerCompareMode, IntegerWidth, InterpFreq, InterpLoc, LdcWidth, LegacyInterpolation,
+    LogicOp, LsSize2, PredicateOp, PredicateOutput, Register, RegisterPair, Relation, RoundingMode,
+    Saturation, SetOp, SetResult, ShuffleMode, Signedness, Source, SourceAbs, SourceNegation,
+    TexOp, VideoElement, VideoSelection, XmadCop,
 };
 use crate::ir::{Requirements, Translation};
 use crate::reaching::ReachingDefinitions;
@@ -3419,6 +3419,7 @@ fn emit_staged<S: ShaderStage>(
     track.declare_inputs(
         shader_stage::Inputs {
             xs,
+            state,
             has_dynamic_input,
             decorations: &mut input_decorations,
             by_location: &mut input_by_location,
@@ -9486,6 +9487,61 @@ fn emit_staged<S: ShaderStage>(
                     boolt,
                 );
             }
+            InstructionKind::LegacyVaryingLoad(ops::LegacyVaryingLoad {
+                dst,
+                varying,
+                interpolation,
+                inv_w,
+            }) => {
+                S::fragment_only(x)?;
+                let flat = match interpolation {
+                    LegacyInterpolation::Pass => false,
+                    LegacyInterpolation::State => state
+                        .legacy_color_flat_shading
+                        .ok_or(Stopped::NoLayout(NoLayout::LegacyColorShading))?,
+                };
+                let location = varying
+                    .location(track.legacy_input_locations())
+                    .ok_or(Stopped::NoLayout(NoLayout::LegacyVaryingLocations))?;
+                let input = input_by_location
+                    .get(&location)
+                    .copied()
+                    .ok_or_else(|| bad(x))?;
+                let value = load(&mut w, &mut id, vec4, input);
+                let component = alu(
+                    &mut w,
+                    &mut id,
+                    Op::CompositeExtract,
+                    float,
+                    &[value, u32::from(varying.component())],
+                );
+                let mut component = if flat {
+                    component
+                } else {
+                    let coord = load(&mut w, &mut id, vec4, frag_coord.ok_or_else(|| bad(x))?);
+                    let reciprocal_w =
+                        alu(&mut w, &mut id, Op::CompositeExtract, float, &[coord, 3]);
+                    let value = alu(&mut w, &mut id, Op::FMul, float, &[component, reciprocal_w]);
+                    inst(annotations, Op::Decorate, &[value, 42]);
+                    value
+                };
+                if interpolation == LegacyInterpolation::State && !flat {
+                    let multiplier = load(&mut w, &mut id, uint, regs[usize::from(inv_w.0)]);
+                    let multiplier = alu(&mut w, &mut id, Op::Bitcast, float, &[multiplier]);
+                    component = alu(&mut w, &mut id, Op::FMul, float, &[component, multiplier]);
+                    inst(annotations, Op::Decorate, &[component, 42]);
+                }
+                let value = alu(&mut w, &mut id, Op::Bitcast, uint, &[component]);
+                put(
+                    &mut w,
+                    &mut id,
+                    regs[dst.0 as usize],
+                    value,
+                    pred,
+                    uint,
+                    boolt,
+                );
+            }
             InstructionKind::IpaPass(ops::IpaPass {
                 dst,
                 addr,
@@ -9628,6 +9684,24 @@ fn emit_staged<S: ShaderStage>(
                 }
             }
             InstructionKind::GeometryOut(ops::GeometryOut { emit, cut, stream }) => {
+                stage_io.as_ref().ok_or_else(|| bad(x))?.emit_vertex(
+                    &mut w,
+                    &mut id,
+                    emit,
+                    cut,
+                    stream,
+                    pred,
+                    boolt,
+                    late_globals,
+                )?;
+            }
+            InstructionKind::GeometryOutHandle(ops::GeometryOutHandle {
+                emit,
+                cut,
+                stream,
+                dst: _,
+                handle: _,
+            }) => {
                 stage_io.as_ref().ok_or_else(|| bad(x))?.emit_vertex(
                     &mut w,
                     &mut id,
@@ -9898,6 +9972,53 @@ fn emit_staged<S: ShaderStage>(
                 // than reading Input.
                 return Err(bad(x));
             }
+            InstructionKind::LegacyVaryingStore(ops::LegacyVaryingStore { data, varying }) => {
+                S::vertex_only(x)?;
+                let location = varying
+                    .location(track.legacy_output_locations())
+                    .ok_or(Stopped::NoLayout(NoLayout::LegacyVaryingLocations))?;
+                let variable = vertex_outputs
+                    .iter()
+                    .find(|(candidate, _)| *candidate == u32::from(location))
+                    .map(|(_, variable)| *variable)
+                    .ok_or_else(|| bad(x))?;
+                let pointer = fresh(&mut id);
+                inst(
+                    &mut w,
+                    Op::AccessChain,
+                    &[
+                        pfloat_out,
+                        pointer,
+                        variable,
+                        constants[&u32::from(varying.component())],
+                    ],
+                );
+                let bits = load(&mut w, &mut id, uint, regs[usize::from(data.0)]);
+                let value = alu(&mut w, &mut id, Op::Bitcast, float, &[bits]);
+                let value = if let Some((predicate, inverted)) = pred {
+                    let condition = load(&mut w, &mut id, boolt, predicate);
+                    let old = load(&mut w, &mut id, float, pointer);
+                    let (true_value, false_value) =
+                        if inverted { (old, value) } else { (value, old) };
+                    alu(
+                        &mut w,
+                        &mut id,
+                        Op::Select,
+                        float,
+                        &[condition, true_value, false_value],
+                    )
+                } else {
+                    value
+                };
+                inst(&mut w, Op::Store, &[pointer, value]);
+            }
+            InstructionKind::PointSizeStore(ops::PointSizeStore { data }) => {
+                S::vertex_only(x)?;
+                let pointer = outputs.point_size().ok_or_else(|| bad(x))?;
+                let bits = load(&mut w, &mut id, uint, regs[usize::from(data.0)]);
+                let value = alu(&mut w, &mut id, Op::Bitcast, float, &[bits]);
+                put(&mut w, &mut id, pointer, value, pred, float, boolt);
+            }
             InstructionKind::AttributeStore(ops::AttributeStore {
                 data,
                 address,
@@ -10003,6 +10124,32 @@ fn emit_staged<S: ShaderStage>(
                     };
                     inst(&mut w, Op::Store, &[pointer, value]);
                 }
+            }
+            InstructionKind::GeometryAttributeStore(ops::GeometryAttributeStore {
+                data,
+                address,
+                handle: _,
+            }) => {
+                S::geometry_only(x)?;
+                let io = stage_io.as_ref().ok_or_else(|| bad(x))?;
+                let (pointer, ty) = io.pointer(
+                    &mut w,
+                    &mut id,
+                    address,
+                    false,
+                    AttributeBank::Output,
+                    None,
+                    None,
+                    &regs,
+                    late_globals,
+                )?;
+                let value = load(&mut w, &mut id, uint, regs[usize::from(data.0)]);
+                let value = if ty == uint {
+                    value
+                } else {
+                    alu(&mut w, &mut id, Op::Bitcast, ty, &[value])
+                };
+                put(&mut w, &mut id, pointer, value, pred, ty, boolt);
             }
             InstructionKind::MuFu(ops::MuFu {
                 dst,

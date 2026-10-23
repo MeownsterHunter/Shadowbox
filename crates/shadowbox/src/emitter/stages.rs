@@ -189,6 +189,11 @@ impl<N: FnMut() -> u32> AttributeIo for Declare<'_, N> {
         self.io
             .add(address, patch, true, self.input_vertices, self.n)
     }
+
+    fn geometry_store(&mut self, address: u16) -> Result<(), Stopped> {
+        self.io
+            .add_with_layer(address, false, true, self.input_vertices, self.n, true)
+    }
 }
 
 impl StageIo {
@@ -389,6 +394,19 @@ impl StageIo {
         input_vertices: u32,
         n: &mut impl FnMut() -> u32,
     ) -> Result<(), Stopped> {
+        self.add_with_layer(address, patch, output, input_vertices, n, false)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_with_layer(
+        &mut self,
+        address: u16,
+        patch: bool,
+        output: bool,
+        input_vertices: u32,
+        n: &mut impl FnMut() -> u32,
+        geometry_layer: bool,
+    ) -> Result<(), Stopped> {
         // BuiltIn/Decoration values: Mesa spirv.core.grammar.json:
         // 14835-14838,14925-14929,15951-16025; addresses and shapes follow
         // Mesa nak_private.h:29-56,73-75 and Ryujinx AttributeMap.cs:63-91.
@@ -431,6 +449,11 @@ impl StageIo {
                 // Ryujinx AttributeMap.cs:63: PrimitiveId is an input in
                 // tessellation/geometry and an output in geometry only.
                 0x60 if !output || self.stage == Stage::Geometry => (0x60, 1, Some(7), None, false),
+                // Ryujinx AttributeMap.cs:64: Layer is a geometry output.
+                // Only the typed current-handle AST path opts into it.
+                0x64 if geometry_layer && output && self.stage == Stage::Geometry => {
+                    (0x64, 1, Some(9), None, false)
+                }
                 0x70..=0x7c => (0x70, 4, Some(0), None, false),
                 0x80..=0x27c => {
                     let l = (address - 0x80) / 16;

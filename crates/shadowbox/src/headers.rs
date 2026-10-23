@@ -168,6 +168,12 @@ impl VertexMaps {
     pub(crate) const fn outputs(self) -> u128 {
         self.outputs
     }
+
+    pub(crate) fn output_locations(self) -> u32 {
+        (0..32).fold(0, |mask, location| {
+            mask | (((self.outputs >> (location * 4)) & 0xf != 0) as u32) << location
+        })
+    }
 }
 
 impl VertexHeader {
@@ -187,6 +193,12 @@ impl FragmentHeader {
             .fold(Interpolation::Unused, |later, &earlier| {
                 FIRST_USED[earlier as usize][later as usize]
             })
+    }
+
+    pub(crate) fn input_locations(&self) -> u32 {
+        (0..32).fold(0, |mask, location| {
+            mask | ((self.input_mode(location) != Interpolation::Unused) as u32) << location
+        })
     }
 
     /// Written render-target components, 4 bits per target.

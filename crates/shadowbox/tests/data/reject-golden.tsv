@@ -9527,7 +9527,7 @@
 246720	32	f0f0000000070000	Nop	all: ok
 246752	32	f0f8000000070000	PopJump	all: UnprovenPop: missing cb1 data or control-flow proof: unresolved stack jump at byte 0x8; every executed history must have a matching push and one destination
 246784	15360	f100000000070000	reject	all: Unknown: unsupported instruction: UNKNOWN 0x<word>
-## envytools gm107.c row/field samples: 36877 words, 3994 runs; decode rejects 12955, decoded with an Unknown field 0, decoded but failing in some stage 4001
+## envytools gm107.c row/field samples: 36877 words, 3996 runs; decode rejects 12954, decoded with an Unknown field 0, decoded but failing in some stage 4002
 # index	count	first word	decode	translate
 0	1	fbe0008000070000	reject	all: Unknown: unsupported instruction: UNKNOWN 0x<word>
 1	1	fbe0008000000000	reject	all: Unknown: unsupported instruction: @0 UNKNOWN 0x<word>
@@ -9555,7 +9555,9 @@
 23	1	fbe0008000040000	reject	all: Unknown: unsupported instruction: @4 UNKNOWN 0x<word>
 24	1	fbe0008000050000	reject	all: Unknown: unsupported instruction: @5 UNKNOWN 0x<word>
 25	1	fbe0008000060000	reject	all: Unknown: unsupported instruction: @6 UNKNOWN 0x<word>
-26	36	fbe0008000070000	reject	all: Unknown: unsupported instruction: UNKNOWN 0x<word>
+26	34	fbe0008000070000	reject	all: Unknown: unsupported instruction: UNKNOWN 0x<word>
+60	1	fbe000800ff70000	GeometryOutHandle	cs,fs,vs,tcs,tes: Unbuilt: unsupported instruction: OUT R0, R0 emit=true cut=false stream=0 || gs: ok
+61	1	f6e0008000070000	reject	all: Unknown: unsupported instruction: UNKNOWN 0x<word>
 62	1	f6e0008000000000	reject	all: Unknown: unsupported instruction: @0 UNKNOWN 0x<word>
 63	1	f6e0008000010000	reject	all: Unknown: unsupported instruction: @1 UNKNOWN 0x<word>
 64	1	f6e0008000020000	reject	all: Unknown: unsupported instruction: @2 UNKNOWN 0x<word>

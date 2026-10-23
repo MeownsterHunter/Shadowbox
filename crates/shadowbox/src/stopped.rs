@@ -196,6 +196,8 @@ pub enum NoLayout {
     UnmappedPatchSlot,
     PatchAddress,
     Attribute,
+    LegacyVaryingLocations,
+    LegacyColorShading,
     OverlappingLocations,
     StreamLayout,
     AliasedBuiltins,
@@ -228,6 +230,10 @@ impl fmt::Display for NoLayout {
             Self::UnmappedPatchSlot => "generic patch slot has no linked Vulkan location",
             Self::PatchAddress => "unsupported patch address",
             Self::Attribute => "unsupported geometry/tessellation attribute",
+            Self::LegacyVaryingLocations => "legacy varying interface has no free user location",
+            Self::LegacyColorShading => {
+                "legacy color shade-model state must be supplied by the driver"
+            }
             Self::OverlappingLocations => "attribute locations overlap",
             Self::StreamLayout => "emitted geometry stream needs an output layout",
             Self::AliasedBuiltins => "native geometry builtins cannot have location aliases",

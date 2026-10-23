@@ -35,6 +35,10 @@ fn mov(dst: u8, bits: u32) -> u64 {
     // Mesa nak/sm50.rs:1938-1941,1951: literal20..52, lanes12..16, dst0..8.
     (0x0100u64 << 48) | (u64::from(bits) << 20) | (15 << 12) | PT | u64::from(dst)
 }
+fn mov_reg(dst: u8, src: u8) -> u64 {
+    // Mesa nak/sm50.rs:1936-1947: register MOV, full 32-bit lane.
+    (0x5c98u64 << 48) | (15 << 39) | (u64::from(src) << 20) | PT | u64::from(dst)
+}
 fn ald(dst: u8, address: u16, count: u8, vertex: u8, patch: bool, output: bool) -> u64 {
     // Mesa nak/sm50.rs:2861-2876: dst, offset RZ, vertex, byte address,
     // patch31, output32, count-1 in47..49. RZ: sm50.rs:204-205.
@@ -1439,6 +1443,93 @@ fn gpu_stage_geometry_exact() {
     suite.finish(100);
 }
 
+#[test]
+#[ignore = "requires RADV hardware, glslc and spirv-val"]
+fn gpu_stage_geometry_current_handle_ast_exact() {
+    const OUT_WORD: u64 = 0xfbe0_0080_0ff7_0000;
+    const WORDS: [(u64, u8, u16); 19] = [
+        (0xeff0_0000_0707_ff01, 1, 0x70),
+        (0xeff0_0000_0747_ff02, 2, 0x74),
+        (0xeff0_0000_0787_ff03, 3, 0x78),
+        (0xeff0_0000_07c7_ff05, 5, 0x7c),
+        (0xeff0_0000_0807_ff06, 6, 0x80),
+        (0xeff0_0000_0847_ff07, 7, 0x84),
+        (0xeff0_0000_0647_ff09, 9, 0x64),
+        (0xeff0_0000_0907_ff09, 9, 0x90),
+        (0xeff0_0000_0707_ff0a, 10, 0x70),
+        (0xeff0_0000_0747_ff01, 1, 0x74),
+        (0xeff0_0000_0787_ff02, 2, 0x78),
+        (0xeff0_0000_07c7_ff03, 3, 0x7c),
+        (0xeff0_0000_0807_ff05, 5, 0x80),
+        (0xeff0_0000_0847_ff06, 6, 0x84),
+        (0xeff0_0000_0647_ff07, 7, 0x64),
+        (0xeff0_0000_0907_ff07, 7, 0x90),
+        (0xeff0_0000_0707_ff09, 9, 0x70),
+        (0xeff0_0000_0647_ff0a, 10, 0x64),
+        (0xeff0_0000_0907_ff0a, 10, 0x90),
+    ];
+
+    fn expected(address: u16) -> u32 {
+        match address {
+            0x70 | 0x74 | 0x64 => 0,
+            0x78 => 0.25_f32.to_bits(),
+            0x7c => 1.0_f32.to_bits(),
+            0x80 => 0.125_f32.to_bits(),
+            0x84 => (-0.25_f32).to_bits(),
+            0x90 => 7,
+            _ => unreachable!(),
+        }
+    }
+
+    let mut suite = Suite::new("geometry-current-handle-ast");
+    let producer = suite.compile("geometry-current-producer", Stage::Vertex, PRODUCER);
+    let observer = suite.compile(
+        "geometry-current-observer",
+        Stage::Fragment,
+        "#version 450\nlayout(location=0) flat in vec4 v;layout(location=1) flat in vec4 ids;layout(location=0) out vec4 color;void main(){color=vec4(v.x,v.y,ids.x,1);}",
+    );
+    for (word, data, address) in WORDS {
+        let xs = vec![
+            mov(20, 0.0_f32.to_bits()),
+            mov(21, 0.0_f32.to_bits()),
+            mov(22, 0.25_f32.to_bits()),
+            mov(23, 1.0_f32.to_bits()),
+            ast(20, 0x70, 4, false),
+            mov(24, 0.125_f32.to_bits()),
+            mov(25, (-0.25_f32).to_bits()),
+            mov(26, 0.5_f32.to_bits()),
+            mov(27, 1.0_f32.to_bits()),
+            ast(24, 0x80, 4, false),
+            mov(28, 7),
+            mov(29, 0),
+            mov(30, 0),
+            mov(31, 0),
+            ast(28, 0x90, 4, false),
+            mov(data, expected(address)),
+            word,
+            OUT_WORD,
+        ];
+        let mut h = header(Stage::Geometry);
+        h[15] = 1;
+        suite.check(Case {
+            name: format!("geometry-current-{word:016x}"),
+            stage: Stage::Geometry,
+            xs,
+            h,
+            state: GraphicsState {
+                geometry_input: Some(GeometryInput::Triangles),
+                ..Default::default()
+            },
+            reference: "#version 450\nlayout(triangles) in;layout(points,max_vertices=1) out;layout(location=0) flat out vec4 v;layout(location=1) flat out vec4 ids;void main(){gl_Position=vec4(0,0,0.25,1);gl_Layer=0;v=vec4(0.125,-0.25,0.5,1);ids=vec4(uintBitsToFloat(7u),0,0,0);EmitVertex();}".into(),
+            shaders: vec![(Stage::Vertex, producer.clone()), (Stage::Fragment, observer.clone())],
+            topology: vk::PrimitiveTopology::TRIANGLE_LIST,
+            discard: false,
+            storage_active: false,
+        });
+    }
+    suite.finish(19);
+}
+
 // Ryujinx AttributeMap.cs:68, InstEmitAttribute.cs:34-55,167-175,208-217:
 // generic ALD advances the immediate per lane; IPA reconstructs the plane
 // only for a perspective-linked input, then MUL applies the B register.
@@ -1583,6 +1674,322 @@ fn fragment_generic_matrix(suite: &mut Suite) {
             );
         }
     }
+}
+
+#[test]
+#[ignore = "requires RADV hardware, glslc and spirv-val"]
+fn gpu_stage_texcoord0_pass_lanes_exact() {
+    const WORDS: [(u64, usize, u8); 2] =
+        [(0xe003_ffb0_cff7_ff04, 3, 4), (0xe003_ffb0_4ff7_ff05, 1, 5)];
+    const SENTINEL: f32 = -7.0;
+    const INPUTS: [f32; 4] = [0.25, -0.5, 0.75, 1.0];
+
+    let mut suite = Suite::new("texcoord0-pass-lanes");
+    let producer = suite.compile(
+        "texcoord0-pass-producer",
+        Stage::Vertex,
+        "#version 450\nlayout(location=5) out vec4 v;void main(){vec2 p[3]=vec2[](vec2(-1,-1),vec2(3,-1),vec2(-1,3));gl_Position=vec4(p[gl_VertexIndex%3]*2,0.5,2);v=vec4(0.25,-0.5,0.75,1.0);}",
+    );
+    for (word, component, dst) in WORDS {
+        let mut xs = vec![mov(10, SENTINEL.to_bits()), word, mov_reg(10, dst)];
+        xs.extend([
+            mov(0, 0),
+            mov(1, 0),
+            mov(2, 0),
+            mov(3, 1.0f32.to_bits()),
+            mov_reg(0, 10),
+        ]);
+        let mut fragment_header = header(Stage::Fragment);
+        fragment_header[24..56].fill(0);
+        let reference = format!(
+            "#version 450\nlayout(location=5) in vec4 v;layout(location=0) out vec4 color;void main(){{color=vec4(v[{component}]*gl_FragCoord.w,0,0,1);}}"
+        );
+        let expected = suite.check(Case {
+            name: format!("texcoord0-pass-{word:016x}"),
+            stage: Stage::Fragment,
+            xs,
+            h: fragment_header,
+            state: GraphicsState::default(),
+            reference,
+            shaders: vec![(Stage::Vertex, producer.clone())],
+            topology: vk::PrimitiveTopology::TRIANGLE_LIST,
+            discard: false,
+            storage_active: false,
+        });
+        assert_eq!(expected.color[0], (INPUTS[component] * 0.5).to_bits());
+    }
+    suite.finish(2);
+}
+
+#[test]
+#[ignore = "requires RADV hardware, glslc and spirv-val"]
+fn gpu_stage_texcoord0_replay_lanes_exact() {
+    const WORDS: [(u64, usize, u8); 4] = [
+        (0xe003_ffb0_0ff7_ff04, 0, 4),
+        (0xe003_ffb0_8ff7_ff02, 2, 2),
+        (0xe003_ffb0_0ff7_ff00, 0, 0),
+        (0xe003_ffb0_4ff7_ff01, 1, 1),
+    ];
+    const SENTINEL: f32 = -7.0;
+    const INPUTS: [f32; 4] = [0.25, -0.5, 0.75, 1.0];
+
+    let mut suite = Suite::new("texcoord0-replay-lanes");
+    let producer = suite.compile(
+        "texcoord0-replay-producer",
+        Stage::Vertex,
+        "#version 450\nlayout(location=5) out vec4 v;void main(){vec2 p[3]=vec2[](vec2(-1,-1),vec2(3,-1),vec2(-1,3));gl_Position=vec4(p[gl_VertexIndex%3]*2,0.5,2);v=vec4(0.25,-0.5,0.75,1.0);}",
+    );
+    for (word, component, dst) in WORDS {
+        let mut xs = vec![mov(10, SENTINEL.to_bits()), word, mov_reg(10, dst)];
+        xs.extend([
+            mov(0, 0),
+            mov(1, 0),
+            mov(2, 0),
+            mov(3, 1.0f32.to_bits()),
+            mov_reg(0, 10),
+        ]);
+        let mut fragment_header = header(Stage::Fragment);
+        fragment_header[24..56].fill(0);
+        let reference = format!(
+            "#version 450\nlayout(location=5) in vec4 v;layout(location=0) out vec4 color;void main(){{color=vec4(v[{component}]*gl_FragCoord.w,0,0,1);}}"
+        );
+        let expected = suite.check(Case {
+            name: format!("texcoord0-replay-{word:016x}"),
+            stage: Stage::Fragment,
+            xs,
+            h: fragment_header,
+            state: GraphicsState::default(),
+            reference,
+            shaders: vec![(Stage::Vertex, producer.clone())],
+            topology: vk::PrimitiveTopology::TRIANGLE_LIST,
+            discard: false,
+            storage_active: false,
+        });
+        assert_eq!(expected.color[0], (INPUTS[component] * 0.5).to_bits());
+    }
+    suite.finish(4);
+}
+
+#[test]
+#[ignore = "requires RADV hardware, glslc and spirv-val"]
+fn gpu_stage_front_color_sc_lane_exact() {
+    const SENTINEL: f32 = -7.0;
+
+    let mut suite = Suite::new("front-color-sc-lane");
+    let smooth = suite.compile(
+        "front-color-sc-smooth-producer",
+        Stage::Vertex,
+        "#version 450\nlayout(location=1) out vec4 v;void main(){vec2 p[3]=vec2[](vec2(-1,-1),vec2(3,-1),vec2(-1,3));gl_Position=vec4(p[gl_VertexIndex%3]*2,0.5,2);v=vec4(0.25,-0.5,0.75,1.0);}",
+    );
+    let flat = suite.compile(
+        "front-color-sc-flat-producer",
+        Stage::Vertex,
+        "#version 450\nlayout(location=1) flat out vec4 v;void main(){vec2 p[3]=vec2[](vec2(-1,-1),vec2(3,-1),vec2(-1,3));gl_Position=vec4(p[gl_VertexIndex%3]*2,0.5,2);v=vec4(0.25,-0.5,0.75,1.0);}",
+    );
+    for (word, dst, lane, input) in [
+        (0xe0c3_ffa8_0047_ff00, 0, "x", 0.25_f32),
+        (0xe0c3_ffa8_4047_ff01, 1, "y", -0.5_f32),
+        (0xe0c3_ffa8_8047_ff02, 2, "z", 0.75_f32),
+        (0xe0c3_ffa8_c047_ff03, 3, "w", 1.0_f32),
+    ] {
+        for shading_flat in [false, true] {
+            let mut xs = vec![
+                mov(4, 2.0_f32.to_bits()),
+                mov(10, SENTINEL.to_bits()),
+                word,
+                mov_reg(10, dst),
+            ];
+            xs.extend([
+                mov(0, 0),
+                mov(1, 0),
+                mov(2, 0),
+                mov(3, 1.0f32.to_bits()),
+                mov_reg(0, 10),
+            ]);
+            let mut fragment_header = header(Stage::Fragment);
+            fragment_header[24..56].fill(0);
+            let qualifier = if shading_flat { "flat" } else { "" };
+            let expression = if shading_flat {
+                format!("v.{lane}")
+            } else {
+                format!("(v.{lane}*gl_FragCoord.w)*2.0")
+            };
+            let reference = format!(
+                "#version 450\nlayout(location=1) {qualifier} in vec4 v;layout(location=0) out vec4 color;void main(){{color=vec4({expression},0,0,1);}}"
+            );
+            let expected = suite.check(Case {
+                name: format!("front-color-sc-{lane}-flat-{shading_flat}"),
+                stage: Stage::Fragment,
+                xs,
+                h: fragment_header,
+                state: GraphicsState {
+                    legacy_color_flat_shading: Some(shading_flat),
+                    ..Default::default()
+                },
+                reference,
+                shaders: vec![(
+                    Stage::Vertex,
+                    if shading_flat {
+                        flat.clone()
+                    } else {
+                        smooth.clone()
+                    },
+                )],
+                topology: vk::PrimitiveTopology::TRIANGLE_LIST,
+                discard: false,
+                storage_active: false,
+            });
+            assert_eq!(expected.color[0], input.to_bits());
+        }
+    }
+    suite.finish(8);
+}
+
+#[test]
+#[ignore = "requires RADV hardware, glslc and spirv-val"]
+fn gpu_stage_legacy_varying_ast_exact() {
+    const VALUE: f32 = -0.625;
+    const WORDS: [u64; 49] = [
+        0xeff0_7f80_2807_ff2a,
+        0xeff0_7f80_2847_ff2b,
+        0xeff0_7f80_2887_ff2c,
+        0xeff0_7f80_28c7_ff29,
+        0xeff0_7f80_2907_ff26,
+        0xeff0_7f80_2947_ff25,
+        0xeff0_7f80_2987_ff24,
+        0xeff0_7f80_29c7_ff23,
+        0xeff0_7f80_2a07_ff2a,
+        0xeff0_7f80_2a47_ff2b,
+        0xeff0_7f80_2a87_ff2c,
+        0xeff0_7f80_2ac7_ff29,
+        0xeff0_7f80_2b07_ff26,
+        0xeff0_7f80_2b47_ff25,
+        0xeff0_7f80_2b87_ff24,
+        0xeff0_7f80_2bc7_ff23,
+        0xeff0_7f80_2e87_ff06,
+        0xeff0_7f80_3007_ff22,
+        0xeff0_7f80_3047_ff21,
+        0xeff0_7f80_3087_ff20,
+        0xeff0_7f80_30c7_ff1f,
+        0xeff0_7f80_3107_ff1e,
+        0xeff0_7f80_3147_ff1d,
+        0xeff0_7f80_3187_ff19,
+        0xeff0_7f80_31c7_ff1c,
+        0xeff0_7f80_3207_ff1b,
+        0xeff0_7f80_3247_ff1a,
+        0xeff0_7f80_3287_ff15,
+        0xeff0_7f80_32c7_ff18,
+        0xeff0_7f80_3307_ff17,
+        0xeff0_7f80_3347_ff16,
+        0xeff0_7f80_3387_ff11,
+        0xeff0_7f80_33c7_ff14,
+        0xeff0_7f80_3407_ff13,
+        0xeff0_7f80_3447_ff12,
+        0xeff0_7f80_3487_ff0d,
+        0xeff0_7f80_34c7_ff10,
+        0xeff0_7f80_3507_ff0f,
+        0xeff0_7f80_3547_ff0e,
+        0xeff0_7f80_3587_ff11,
+        0xeff0_7f80_35c7_ff0c,
+        0xeff0_7f80_3607_ff0b,
+        0xeff0_7f80_3647_ff0a,
+        0xeff0_7f80_3687_ff08,
+        0xeff0_7f80_36c7_ff19,
+        0xeff0_7f80_3707_ff03,
+        0xeff0_7f80_3747_ff02,
+        0xeff0_7f80_3787_ff01,
+        0xeff0_7f80_37c7_ff00,
+    ];
+
+    let mut suite = Suite::new("legacy-color-ast-lanes");
+    for word in WORDS {
+        let instruction = decode_word([word as u32, (word >> 32) as u32], 0);
+        let InstructionKind::LegacyVaryingStore(ops::LegacyVaryingStore { data, varying }) =
+            instruction.kind
+        else {
+            panic!("{word:016x} did not enter the typed legacy store path")
+        };
+        let location = varying.location(0).unwrap();
+        let lane = ["x", "y", "z", "w"][usize::from(varying.component())];
+        let observer = suite.compile(
+            &format!("legacy-ast-{word:016x}-observer"),
+            Stage::Fragment,
+            &format!("#version 450\nlayout(location={location}) in vec4 v;layout(location=0) out vec4 color;void main(){{color=vec4(v.{lane},0,0,1);}}"),
+        );
+        let xs = vec![
+            ald(0, 0x80, 4, 255, false, false),
+            ast(0, 0x70, 4, false),
+            mov(data.0, VALUE.to_bits()),
+            word,
+        ];
+        let mut vertex_header = header(Stage::Vertex);
+        vertex_header[54..70].fill(0);
+        let expected = suite.check(Case {
+            name: format!("legacy-varying-ast-{word:016x}"),
+            stage: Stage::Vertex,
+            xs,
+            h: vertex_header,
+            state: GraphicsState::default(),
+            reference: format!(
+                "#version 450\nlayout(location=0) in vec4 p;layout(location={location}) out vec4 v;void main(){{gl_Position=p;v.{lane}={VALUE:?};}}"
+            ),
+            shaders: vec![(Stage::Fragment, observer)],
+            topology: vk::PrimitiveTopology::TRIANGLE_LIST,
+            discard: false,
+            storage_active: false,
+        });
+        assert_eq!(expected.color[0], VALUE.to_bits());
+    }
+    suite.finish(49);
+}
+
+#[test]
+#[ignore = "requires RADV hardware, glslc and spirv-val"]
+fn gpu_stage_point_size_ast_exact() {
+    const WORD: u64 = 0xeff0_7f80_06c7_ff05;
+    const POSITIONS: [[f32; 8]; 6] = [
+        [-0.75, -0.75, 0.25, 1.0, 0.0, 0.0, 0.0, 0.0],
+        [-0.25, -0.25, 0.25, 1.0, 0.0, 0.0, 0.0, 0.0],
+        [0.25, 0.25, 0.25, 1.0, 0.0, 0.0, 0.0, 0.0],
+        [0.75, 0.75, 0.25, 1.0, 0.0, 0.0, 0.0, 0.0],
+        [-0.75, 0.75, 0.25, 1.0, 0.0, 0.0, 0.0, 0.0],
+        [0.75, -0.75, 0.25, 1.0, 0.0, 0.0, 0.0, 0.0],
+    ];
+    let mut suite = Suite::new("point-size-ast");
+    let fragment = suite.compile(
+        "point-size-observer",
+        Stage::Fragment,
+        "#version 450\nlayout(location=0) out vec4 color;void main(){color=vec4(1);}",
+    );
+    for size in [2.0_f32, 4.0, 8.0] {
+        let expected = suite.check_vertices(
+            Case {
+                name: format!("point-size-{size}"),
+                stage: Stage::Vertex,
+                xs: vec![
+                    ald(0, 0x80, 4, 255, false, false),
+                    ast(0, 0x70, 4, false),
+                    mov(5, size.to_bits()),
+                    WORD,
+                ],
+                h: header(Stage::Vertex),
+                state: GraphicsState::default(),
+                reference: format!(
+                    "#version 450\nlayout(location=0) in vec4 p;void main(){{gl_Position=p;gl_PointSize={size:?};}}"
+                ),
+                shaders: vec![(Stage::Fragment, fragment.clone())],
+                topology: vk::PrimitiveTopology::POINT_LIST,
+                discard: false,
+                storage_active: false,
+            },
+            &POSITIONS,
+        );
+        assert!(
+            expected.color.iter().any(|&pixel| pixel != 0),
+            "point size {size} produced a vacuous reference image"
+        );
+    }
+    suite.finish(3);
 }
 
 #[test]

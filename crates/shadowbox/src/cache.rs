@@ -294,7 +294,7 @@ type StageState = fn(&Code, &GraphicsState, &mut Sha256);
 /// The graphics state each stage's identity consumes, in `Stage` order.
 const STAGE_STATE: [StageState; 6] = [
     vertex_state,
-    no_state,
+    fragment_state,
     no_state,
     geometry_state,
     control_state,
@@ -302,6 +302,24 @@ const STAGE_STATE: [StageState; 6] = [
 ];
 
 fn no_state(_: &Code, _: &GraphicsState, _: &mut Sha256) {}
+
+fn fragment_state(code: &Code, state: &GraphicsState, hasher: &mut Sha256) {
+    if code.instruction_slots().any(|(address, word)| {
+        matches!(
+            crate::decoder::decode_word(word, address).kind,
+            crate::ir::InstructionKind::LegacyVaryingLoad(crate::ir::ops::LegacyVaryingLoad {
+                interpolation: crate::ir::LegacyInterpolation::State,
+                ..
+            })
+        )
+    }) {
+        present(
+            hasher,
+            state.legacy_color_flat_shading.iter(),
+            |hasher, flat| hasher.update([u8::from(*flat)]),
+        );
+    }
+}
 
 fn vertex_state(code: &Code, state: &GraphicsState, hasher: &mut Sha256) {
     // Ryujinx InstEmitMove.cs:94-114 also consumes topology for vertex

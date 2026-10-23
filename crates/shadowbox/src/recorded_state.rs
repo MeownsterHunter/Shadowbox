@@ -1,6 +1,6 @@
 //! Typed driver state recovered from a decompressed shared cache record.
 
-use crate::interface::{BoundTexture, TextureArray, TextureDimension};
+use crate::interface::{BoundTexture, GeometryInput, TextureArray, TextureDimension};
 
 fn u32_at(bytes: &[u8], at: usize) -> Result<u32, String> {
     let value = bytes.get(at..at + 4).ok_or("truncated shared state")?;
@@ -44,6 +44,32 @@ fn texture_section(shared: &[u8]) -> Result<(u32, usize, u16), String> {
     }
     let count = count_at(at)?;
     Ok((queried, at + 2, count))
+}
+
+/// Return the geometry input topology recorded by the graphics driver.
+///
+/// Ryujinx serializes its unmanaged graphics-state struct in the GFXS record.
+/// Natural `u32` alignment puts `PrimitiveTopology` at byte 4. Keep the same
+/// closed mapping used by the cache importer instead of inferring topology
+/// from shader instructions.
+pub fn geometry_input(shared: &[u8]) -> Result<Option<GeometryInput>, String> {
+    let mask = u32_at(shared, 0)?;
+    if mask == 0 {
+        return Ok(None);
+    }
+    let at = 4 + 4 * mask.count_ones() as usize;
+    let (graphics, _) = sized(shared, at + 5, b"GFXS")?;
+    if graphics.len() < 8 {
+        return Ok(None);
+    }
+    Ok(Some(match u32_at(graphics, 4)? {
+        0 | 7..=9 => GeometryInput::Points,
+        1..=3 => GeometryInput::Lines,
+        4..=6 => GeometryInput::Triangles,
+        10 | 11 => GeometryInput::LinesAdjacency,
+        12 | 13 => GeometryInput::TrianglesAdjacency,
+        topology => return Err(format!("invalid primitive topology {topology}")),
+    }))
 }
 
 /// Return the bound texture shapes recorded for one shader stage.
@@ -173,6 +199,18 @@ mod tests {
         shared
     }
 
+    fn geometry_fixture(topology: u32) -> Vec<u8> {
+        let mut shared = Vec::new();
+        shared.extend_from_slice(&2u32.to_le_bytes());
+        shared.extend_from_slice(&0u32.to_le_bytes());
+        shared.extend_from_slice(&0u32.to_le_bytes());
+        shared.push(0);
+        let mut graphics = vec![0; 8];
+        graphics[4..8].copy_from_slice(&topology.to_le_bytes());
+        sized_record(b"GFXS", &graphics, &mut shared);
+        shared
+    }
+
     #[test]
     fn recorded_query_shape_is_typed_and_stage_scoped() {
         assert_eq!(
@@ -207,5 +245,21 @@ mod tests {
         );
         assert!(texture_arrays(&array_fixture(), 1).unwrap().is_empty());
         assert!(texture_arrays(&fixture(1), 0).unwrap().is_empty());
+    }
+
+    #[test]
+    fn recorded_geometry_topology_is_typed_and_fail_closed() {
+        assert!(matches!(
+            geometry_input(&geometry_fixture(5)).unwrap(),
+            Some(GeometryInput::Triangles)
+        ));
+        assert_eq!(
+            geometry_input(&geometry_fixture(15)).unwrap_err(),
+            "invalid primitive topology 15"
+        );
+
+        let mut truncated = geometry_fixture(5);
+        truncated.truncate(20);
+        assert!(geometry_input(&truncated).is_err());
     }
 }
