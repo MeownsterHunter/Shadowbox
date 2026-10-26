@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="452" viewBox="0 0 760 452" style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif" role="img" aria-label="Decoder gaps surfaced or resolved per hour">
+<text x="0" y="18" fill="#8b949e" font-size="15" font-weight="600">Decoder gaps surfaced or resolved per hour</text>
+<text x="0" y="34" fill="#8b949e" font-size="11">log scale; gridlines at each power of ten</text>
+<line x1="300.0" y1="42" x2="300.0" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="322.1" y1="42" x2="322.1" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="344.3" y1="42" x2="344.3" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="366.4" y1="42" x2="366.4" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="388.6" y1="42" x2="388.6" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="410.7" y1="42" x2="410.7" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="432.9" y1="42" x2="432.9" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="455.0" y1="42" x2="455.0" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="477.1" y1="42" x2="477.1" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="499.3" y1="42" x2="499.3" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="521.4" y1="42" x2="521.4" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="543.6" y1="42" x2="543.6" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="565.7" y1="42" x2="565.7" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="587.9" y1="42" x2="587.9" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="610.0" y1="42" x2="610.0" y2="314" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<text x="290" y="61.0" fill="#8b949e" font-size="12" text-anchor="end">1. Field sampling + game failures</text>
+<rect x="300" y="44" width="13.3" height="26" rx="4" fill="#2a78d6"/>
+<text x="321.3" y="61.0" fill="#8b949e" font-size="12" font-weight="600">4</text>
+<text x="290" y="101.0" fill="#8b949e" font-size="12" text-anchor="end">2a. Oracle sweep, opcode space</text>
+<rect x="300" y="84" width="124.6" height="26" rx="4" fill="#2a78d6"/>
+<text x="432.6" y="101.0" fill="#8b949e" font-size="12" font-weight="600">424,074</text>
+<text x="290" y="141.0" fill="#8b949e" font-size="12" text-anchor="end">2b. Oracle sweep, all rows</text>
+<rect x="300" y="124" width="126.8" height="26" rx="4" fill="#2a78d6"/>
+<text x="434.8" y="141.0" fill="#8b949e" font-size="12" font-weight="600">531,789</text>
+<text x="290" y="181.0" fill="#8b949e" font-size="12" text-anchor="end">3a. Inference pass 1, all encodings</text>
+<rect x="300" y="164" width="289.0" height="26" rx="4" fill="#2a78d6"/>
+<text x="597.0" y="181.0" fill="#8b949e" font-size="12" font-weight="600">1.1 x 10^13</text>
+<text x="290" y="221.0" fill="#8b949e" font-size="12" text-anchor="end">3b. Inference pass 1, modifier sets</text>
+<rect x="300" y="204" width="139.3" height="26" rx="4" fill="#2a78d6"/>
+<text x="447.3" y="221.0" fill="#8b949e" font-size="12" font-weight="600">1,944,917</text>
+<text x="290" y="261.0" fill="#8b949e" font-size="12" text-anchor="end">3c. Refined pass 2, all encodings</text>
+<rect x="300" y="244" width="284.9" height="26" rx="4" fill="#2a78d6"/>
+<text x="592.9" y="261.0" fill="#8b949e" font-size="12" font-weight="600">7.3 x 10^12</text>
+<text x="290" y="301.0" fill="#8b949e" font-size="12" text-anchor="end">3d. Refined pass 2, modifier sets</text>
+<rect x="300" y="284" width="136.4" height="26" rx="4" fill="#2a78d6"/>
+<text x="444.4" y="301.0" fill="#8b949e" font-size="12" font-weight="600">1,438,992</text>
+<text x="0" y="340" fill="#8b949e" font-size="11">1: distinct failures in one game harvest (3 in 45 min of play); investigation time excluded.</text>
+<text x="0" y="358" fill="#8b949e" font-size="11">2: words nvdisasm decodes and Shadowbox calls Unknown, per hour of sweep run time.</text>
+<text x="0" y="376" fill="#8b949e" font-size="11">3: encodings accounted for by layouts of rows whose composed words were >= 90% exact: pass 1 194 rows in 25 min,</text>
+<text x="0" y="394" fill="#8b949e" font-size="11">   pass 2 209 rows in 52 min (both passes). 3a/3c count immediates, 3b/3d only modifier, enum and flag</text>
+<text x="0" y="412" fill="#8b949e" font-size="11">   fields, summed over operand forms; registers, don't-care and form bits are never counted.</text>
+<text x="0" y="430" fill="#8b949e" font-size="11">   Gaps (1, 2) and encodings (3) are different units; run times exclude investigation.</text>
+</svg>

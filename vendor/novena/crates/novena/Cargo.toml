@@ -1,0 +1,27 @@
+[package]
+name = "novena"
+description = "A Vulkan implementation of a console graphics API, written from scratch"
+version = "0.0.1"
+edition = "2021"
+license = "PolyForm-Noncommercial-1.0.0 OR AGPL-3.0-or-later"
+
+[lib]
+crate-type = ["rlib", "cdylib", "staticlib"]
+
+[features]
+default = []
+vulkan = ["dep:ash", "dep:blake3", "dep:serde", "dep:serde_json"]
+shadowbox = ["vulkan"]
+draw-metrics = ["vulkan"]
+
+[dependencies]
+arc-swap = "1"
+ash = { version = "0.38", optional = true, default-features = false, features = ["loaded"] }
+blake3 = { version = "1", optional = true }
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+
+# Keep this vendored dependency independent of any workspace that contains
+# the Shadowbox checkout.
+[workspace]

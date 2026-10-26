@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="752" height="300" viewBox="0 0 752 300" style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif" role="img" aria-label="LDG 64-bit field map inferred from bit flips">
+<text x="24" y="18" fill="#8b949e" font-size="15" font-weight="600">One solved grid: LDG.E.U8 R0, [R0] (word 0xeed0200000070000)</text>
+<text x="722.5" y="46" fill="#8b949e" font-size="9" text-anchor="middle">0</text>
+<text x="634.5" y="46" fill="#8b949e" font-size="9" text-anchor="middle">8</text>
+<text x="546.5" y="46" fill="#8b949e" font-size="9" text-anchor="middle">16</text>
+<text x="458.5" y="46" fill="#8b949e" font-size="9" text-anchor="middle">24</text>
+<text x="370.5" y="46" fill="#8b949e" font-size="9" text-anchor="middle">32</text>
+<text x="282.5" y="46" fill="#8b949e" font-size="9" text-anchor="middle">40</text>
+<text x="194.5" y="46" fill="#8b949e" font-size="9" text-anchor="middle">48</text>
+<text x="106.5" y="46" fill="#8b949e" font-size="9" text-anchor="middle">56</text>
+<text x="29.5" y="46" fill="#8b949e" font-size="9" text-anchor="middle">63</text>
+<rect x="156.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="145.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="134.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="123.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="112.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="101.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="90.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="79.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="68.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="57.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="46.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="35.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<rect x="24.5" y="52" width="10" height="30" rx="2" fill="#2a78d6"/>
+<line x1="95.5" y1="84" x2="95.5" y2="89" stroke="#8b949e" stroke-width="1"/>
+<text x="95.5" y="100" fill="#8b949e" font-size="11" text-anchor="middle">63:51 opcode: LDG</text>
+<rect x="189.5" y="52" width="10" height="30" rx="2" fill="#d95926"/>
+<rect x="178.5" y="52" width="10" height="30" rx="2" fill="#d95926"/>
+<rect x="167.5" y="52" width="10" height="30" rx="2" fill="#d95926"/>
+<line x1="183.5" y1="84" x2="183.5" y2="113" stroke="#8b949e" stroke-width="1"/>
+<text x="178.5" y="117" fill="#8b949e" font-size="11" text-anchor="end">50:48 size .U8 .S8 .U16 ...</text>
+<rect x="211.5" y="52" width="10" height="30" rx="2" fill="#d95926"/>
+<rect x="200.5" y="52" width="10" height="30" rx="2" fill="#d95926"/>
+<line x1="211.0" y1="84" x2="211.0" y2="130" stroke="#8b949e" stroke-width="1"/>
+<text x="206.0" y="134" fill="#8b949e" font-size="11" text-anchor="end">47:46 cache .CG .CI .CV</text>
+<rect x="222.5" y="52" width="10" height="30" rx="2" fill="#d95926"/>
+<line x1="227.5" y1="84" x2="227.5" y2="147" stroke="#8b949e" stroke-width="1"/>
+<text x="222.5" y="151" fill="#8b949e" font-size="11" text-anchor="end">45 .E</text>
+<rect x="233.5" y="52" width="10" height="30" rx="2" fill="none" stroke="#8b949e" stroke-dasharray="2 2"/>
+<line x1="238.5" y1="84" x2="238.5" y2="164" stroke="#8b949e" stroke-width="1"/>
+<text x="233.5" y="168" fill="#8b949e" font-size="11" text-anchor="end">44 no effect</text>
+<rect x="497.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="486.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="475.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="464.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="453.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="442.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="431.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="420.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="409.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="398.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="387.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="376.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="365.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="354.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="343.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="332.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="321.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="310.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="299.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="288.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="277.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="266.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="255.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<rect x="244.5" y="52" width="10" height="30" rx="2" fill="#c98500"/>
+<line x1="376.0" y1="84" x2="376.0" y2="89" stroke="#8b949e" stroke-width="1"/>
+<text x="376.0" y="100" fill="#8b949e" font-size="11" text-anchor="middle">43:20 signed offset</text>
+<rect x="508.5" y="52" width="10" height="30" rx="2" fill="#d55181"/>
+<line x1="513.5" y1="84" x2="513.5" y2="113" stroke="#8b949e" stroke-width="1"/>
+<text x="508.5" y="117" fill="#8b949e" font-size="11" text-anchor="end">19 guard !</text>
+<rect x="541.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="530.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="519.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<line x1="535.5" y1="84" x2="535.5" y2="130" stroke="#8b949e" stroke-width="1"/>
+<text x="530.5" y="134" fill="#8b949e" font-size="11" text-anchor="end">18:16 guard P</text>
+<rect x="629.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="618.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="607.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="596.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="585.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="574.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="563.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="552.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<line x1="596.0" y1="84" x2="596.0" y2="89" stroke="#8b949e" stroke-width="1"/>
+<text x="596.0" y="100" fill="#8b949e" font-size="11" text-anchor="middle">15:8 Ra</text>
+<rect x="717.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="706.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="695.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="684.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="673.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="662.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="651.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<rect x="640.5" y="52" width="10" height="30" rx="2" fill="#199e70"/>
+<line x1="684.0" y1="84" x2="684.0" y2="89" stroke="#8b949e" stroke-width="1"/>
+<text x="684.0" y="100" fill="#8b949e" font-size="11" text-anchor="middle">7:0 Rd</text>
+<rect x="24" y="184" width="12" height="12" rx="2" fill="#2a78d6"/>
+<text x="41" y="194" fill="#8b949e" font-size="11">opcode</text>
+<rect x="111" y="184" width="12" height="12" rx="2" fill="#d95926"/>
+<text x="128" y="194" fill="#8b949e" font-size="11">modifier</text>
+<rect x="214" y="184" width="12" height="12" rx="2" fill="#199e70"/>
+<text x="231" y="194" fill="#8b949e" font-size="11">register</text>
+<rect x="317" y="184" width="12" height="12" rx="2" fill="#c98500"/>
+<text x="334" y="194" fill="#8b949e" font-size="11">immediate</text>
+<rect x="428" y="184" width="12" height="12" rx="2" fill="#d55181"/>
+<text x="445" y="194" fill="#8b949e" font-size="11">flag</text>
+<rect x="499" y="184" width="12" height="12" rx="2" fill="none" stroke="#8b949e" stroke-dasharray="2 2"/>
+<text x="516" y="194" fill="#8b949e" font-size="11">no effect</text>
+<text x="24" y="224" fill="#8b949e" font-size="11">Bit 63 is on the left, bit 0 on the right. Each cell's role came from flipping that one bit and diffing the disassembly;</text>
+<text x="24" y="240" fill="#8b949e" font-size="11">widths and the sign bit of the offset came from merging flips over all LDG base words. Bit 44 changed nothing on any base.</text>
+</svg>

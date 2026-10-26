@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="296" viewBox="0 0 760 296" style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif" role="img" aria-label="nvdisasm calls per instruction row mapped (mean over rows)">
+<text x="0" y="18" fill="#8b949e" font-size="15" font-weight="600">nvdisasm calls per instruction row mapped (mean over rows)</text>
+<text x="0" y="34" fill="#8b949e" font-size="11">log scale; gridlines at each power of ten</text>
+<line x1="300.0" y1="42" x2="300.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="331.0" y1="42" x2="331.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="362.0" y1="42" x2="362.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="393.0" y1="42" x2="393.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="424.0" y1="42" x2="424.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="455.0" y1="42" x2="455.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="486.0" y1="42" x2="486.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="517.0" y1="42" x2="517.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="548.0" y1="42" x2="548.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="579.0" y1="42" x2="579.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<line x1="610.0" y1="42" x2="610.0" y2="194" stroke="#8b949e" stroke-opacity="0.25" stroke-width="1"/>
+<text x="290" y="61.0" fill="#8b949e" font-size="12" text-anchor="end">Exhaustive modifier combinations, 2^k</text>
+<rect x="300" y="44" width="283.6" height="26" rx="4" fill="#2a78d6"/>
+<text x="591.6" y="61.0" fill="#8b949e" font-size="12" font-weight="600">1.4 x 10^9</text>
+<text x="290" y="101.0" fill="#8b949e" font-size="12" text-anchor="end">Row sweep as run (sampled)</text>
+<rect x="300" y="84" width="118.2" height="26" rx="4" fill="#2a78d6"/>
+<text x="426.2" y="101.0" fill="#8b949e" font-size="12" font-weight="600">6,506</text>
+<text x="290" y="141.0" fill="#8b949e" font-size="12" text-anchor="end">Inference, flips + pairs + tables</text>
+<rect x="300" y="124" width="118.8" height="26" rx="4" fill="#2a78d6"/>
+<text x="426.8" y="141.0" fill="#8b949e" font-size="12" font-weight="600">6,818</text>
+<text x="290" y="181.0" fill="#8b949e" font-size="12" text-anchor="end">Inference, per base word</text>
+<rect x="300" y="164" width="55.9" height="26" rx="4" fill="#2a78d6"/>
+<text x="363.9" y="181.0" fill="#8b949e" font-size="12" font-weight="600">63</text>
+<text x="0" y="220" fill="#8b949e" font-size="11">Over the 294 rows inference mapped. Exhaustive = 2^k for a row's k modifier bits (median k = 6), operands held fixed.</text>
+<text x="0" y="238" fill="#8b949e" font-size="11">The sweep caps large rows with a seeded random sample, so it does not cover them. Inference used 26.5 base words</text>
+<text x="0" y="256" fill="#8b949e" font-size="11">per row (median); on small rows it costs more than exhaustive search (median 1,626 vs 64 calls).</text>
+<text x="0" y="274" fill="#8b949e" font-size="11">Inference includes 24,512 table-enumeration calls (in the mean, not the medians). Validation words and operand values are excluded.</text>
+</svg>
