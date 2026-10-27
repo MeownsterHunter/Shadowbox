@@ -4012,15 +4012,16 @@ fn read_lop3_immediate(x: Word) -> Instruction {
 // Ryujinx InstDecoders.cs:3771-3780 independently agrees. NAK
 // sm50.rs:3290-3363 has no SM50 LOP3 encoder.
 // InstEmitIntegerLogical.cs:76-84,118-142 uses the same three-input
-// truth table and Z/N flags.
-// Its hard-coded X=false does not establish extended semantics.
+// truth table and shared extended Z/N flag path. Fresh cbuf-X hardware
+// evidence establishes that the encoded X bit enables that path; see
+// docs/provenance/0137-lop3-cbuf-extended.md.
 fn lop3_constant(x: Word) -> Instruction {
     let r = x.r;
     let d = Register(b(r, 0, 8) as u8);
     let l = Register(b(r, 8, 8) as u8);
 
     x.guarded(InstructionKind::Lop3(ops::Lop3 {
-        extended: false,
+        extended: b(r, 56, 1) != 0,
         dst: d,
         lhs: l,
         rhs: Source::ConstantBuffer {
@@ -4033,15 +4034,8 @@ fn lop3_constant(x: Word) -> Instruction {
         predicate_output: None,
     }))
 }
-const LOP3_CONSTANT_FIELDS: Fields<1> = Fields([Field::bits(56, 1)]);
-const fn lop3_constant_rule(r: u64) -> u8 {
-    (b(r, 56, 1) == 0) as u8
-}
-const LOP3_CONSTANT_FORMS: [u8; LOP3_CONSTANT_FIELDS.len()] =
-    forms!(LOP3_CONSTANT_FIELDS, lop3_constant_rule);
 fn read_lop3_constant(x: Word) -> Instruction {
-    let paths: [Decode; 2] = [unknown, lop3_constant];
-    paths[(LOP3_CONSTANT_FORMS[LOP3_CONSTANT_FIELDS.index(x.r)]) as usize](x)
+    lop3_constant(x)
 }
 // LOP (Ryujinx InstTable.cs:209-211, MIT: 0x5c40-0x5c47,
 // 0x4c40-0x4c47, 0x3840-0x3847, 0x3940-0x3947; InstDecoders.cs:

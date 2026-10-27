@@ -2580,6 +2580,21 @@ fn imnmx_reference_distinguishes_ordinary_and_extended_states() {
 }
 
 #[test]
+#[ignore = "RADV hardware; cbuf LOP3.X"]
+fn gpu_cbuf_lop3_x_exact() {
+    let mut report = Report::new("cbuf-lop3-x");
+    for (name, raw) in [
+        ("LOP3_CBUF_X", 0x0300_0600_0001_0804),
+        ("LOP3_CBUF_X_CC", 0x0300_8600_0001_0804),
+        ("LOP3_CBUF_X_RZ", 0x0300_7f80_0007_ffff),
+        ("LOP3_CBUF_X_CC_RZ", 0x0300_ff80_0007_ffff),
+    ] {
+        report.check(name, raw, true);
+    }
+    report.finish();
+}
+
+#[test]
 #[ignore = "RADV hardware; directed ordinary IMNMX"]
 fn gpu_imnmx_ordinary_exact() {
     let mut report = Report::new("imnmx-ordinary");

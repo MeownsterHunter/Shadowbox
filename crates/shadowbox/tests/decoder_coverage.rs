@@ -17,6 +17,8 @@ const MAIN_FSET: &str = include_str!("data/fset-baseline.tsv");
 const FORMATS: &str = include_str!("data/decoder-formats.tsv");
 const FORMAT_SAMPLES: &str = include_str!("data/decoder-format-samples.tsv");
 const FORMAT_TABLE: &str = include_str!("../src/decoder/formats/table.rs");
+const WIDE_RESULTS: &str = include_str!("data/decoder-wide-results.tsv");
+const WIDE_REPORT: &str = include_str!("../../../docs/decoder-wide-row-validation.md");
 
 #[derive(Default)]
 struct Counts {
@@ -259,13 +261,14 @@ fn every_op8b_row_and_significant_field_value_is_recorded() {
          server and were skipped. CPU spirv-val validation is separate.\n\n\
          These probes are the widest and weakest check. The stronger ones are\n\
          in [decoder-methodology.md](decoder-methodology.md#current-measured-state):\n\
-         every encoding of 80 rows (all 79 with at most 24 free bits, and one\n\
-         with 28; 1,744,863,232 words) was compared with the vendor\n\
-         disassembler, with 0 missing words, 0 wrong admissions and 0\n\
-         misprints; the inference layouts predict 9,191 of 9,194 frozen\n\
-         held-out words exactly, and the shipped tables print the other 3\n\
-         exactly; and the decoder tables are written only when\n\
-         no word the disassembler rejects is decoded.\n\n",
+         the generated format table was compared with every encoding of 80\n\
+         rows (all 79 with at most 24 free bits, and one with 28;\n\
+         1,744,863,232 words), with 0 missing words, 0 wrong admissions and 0\n\
+         misprints. That historical run did not exercise hand-written decoder\n\
+         families. A separate real-decoder rerun has completed 53 of the 79\n\
+         ordinary rows (671,154,176 words) with 0 wrong admissions; VABSDIFF4\n\
+         has not been rerun. [Wide-row covering sets](decoder-wide-row-validation.md)\n\
+         are reported as sampled results, never exhaustive closure.\n\n",
     );
     let total: usize = counts
         .values()
@@ -493,8 +496,8 @@ fn every_generated_format_prints_its_samples_exactly() {
         "formats/table.rs or its samples were not generated from decoder-formats.tsv"
     );
     // The generator writes the table only after measuring an oracle sweep
-    // with no wrong admission: no word the disassembler rejects is decoded,
-    // by a hand-written family or a format.
+    // with no wrong admission by the generated format table. Hand-written
+    // families are measured separately by the production-decoder sweep.
     assert!(
         FORMAT_SAMPLES
             .lines()
@@ -528,4 +531,87 @@ fn every_generated_format_prints_its_samples_exactly() {
         words += 1;
     }
     assert!(words >= TABLE.variants.len());
+}
+
+#[test]
+fn wide_row_results_are_internally_consistent() {
+    let mut keys = std::collections::BTreeSet::new();
+    let mut rows = 0_u64;
+    let mut words = 0_u64;
+    let mut qualified = 0_u64;
+    let mut gaps = 0_u64;
+    let mut blocked = 0_u64;
+    let mut errors = 0_u64;
+    let mut production_wrong = 0_u64;
+    let mut table_missing = 0_u64;
+    let mut table_wrong = 0_u64;
+    let mut table_misprint = 0_u64;
+
+    for line in WIDE_RESULTS.lines().skip(1).filter(|line| !line.is_empty()) {
+        let column = line.split('\t').collect::<Vec<_>>();
+        assert_eq!(column.len(), 27, "malformed wide-row result: {line}");
+        assert!(
+            keys.insert((column[3], column[1])),
+            "duplicate row result: {line}"
+        );
+        let number = |index: usize| column[index].parse::<u64>().unwrap();
+        let checked = number(5);
+        assert_eq!(
+            number(13) + number(14) + number(15) + number(16),
+            checked,
+            "production counts do not cover row {}",
+            column[1]
+        );
+        assert_eq!(
+            number(17) + number(18) + number(19) + number(20) + number(21) + number(22),
+            checked,
+            "format-table counts do not cover row {}",
+            column[1]
+        );
+        assert_eq!(column[4], format!("T({},{checked})", column[8]));
+        match column[0] {
+            "qualified" => {
+                qualified += 1;
+                assert_eq!(number(12), 0, "qualified row has hidden interactions");
+                assert_eq!(number(18) + number(16) + number(21) + number(22), 0);
+            }
+            "format-gap" => {
+                gaps += 1;
+                assert_eq!(number(12), 0, "format gap has hidden interactions");
+                assert_ne!(number(18), 0, "format gap has no missing words");
+                assert_eq!(number(16) + number(21) + number(22), 0);
+            }
+            "hidden-interactions" => {
+                blocked += 1;
+                assert_ne!(number(12), 0, "blocked row has no hidden interactions");
+            }
+            "decoder-error" => {
+                errors += 1;
+                assert_eq!(number(12), 0, "decoder error has hidden interactions");
+                assert_ne!(number(16) + number(21) + number(22), 0);
+            }
+            status => panic!("unknown wide-row status {status}"),
+        }
+        for digest in &column[23..27] {
+            assert_eq!(digest.len(), 64);
+            assert!(digest.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        }
+        rows += 1;
+        words += checked;
+        production_wrong += number(16);
+        table_missing += number(18);
+        table_wrong += number(21);
+        table_misprint += number(22);
+    }
+
+    assert!(WIDE_REPORT.contains(&format!(
+        "Rows measured: {rows} ({qualified} qualified, {gaps} format gaps, {blocked} blocked by hidden interactions, {errors} decoder errors)."
+    )));
+    assert!(WIDE_REPORT.contains(&format!("Words checked: {words}.")));
+    assert!(WIDE_REPORT.contains(&format!(
+        "Format-table gaps/errors: {table_missing} missing, {table_wrong} wrong admissions, {table_misprint} misprints."
+    )));
+    assert!(WIDE_REPORT.contains(&format!(
+        "Shipped-decoder wrong admissions: {production_wrong}."
+    )));
 }

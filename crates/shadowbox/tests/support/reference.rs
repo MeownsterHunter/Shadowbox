@@ -1462,13 +1462,17 @@ pub fn reference(raw: u64, state: &[u32; WORDS]) -> Result<Expected, &'static st
             }
             Some(v)
         }
-        // LOP3 immediate: gm107.c:2108 lists S20_20 and LUT48, but omits
-        // the third source. Ryujinx Decoders/InstDecoders.cs:3752-3764 and
-        // InstEmitIntegerLogical.cs:65-75 supply B=S20 and C=register39.
+        // LOP3 immediate/cbuf: gm107.c:2108,2169. Ryujinx
+        // Decoders/InstDecoders.cs:3752-3780 supplies B and C for both.
         // S20 sign56: Mesa sm50.rs:335-346. A occupies truth-table bit2,
         // B bit1, C bit0: Ryujinx Lop3Expression.cs:13-29,34-42.
-        _ if o & 0xfc00 == 0x3c00 || o & 0xfff8 == 0x5be0 => {
-            let b = operand(raw, state, false);
+        _ if o & 0xfc00 == 0x3c00 || o & 0xfff8 == 0x5be0 || o & 0xfe00 == 0x0200 => {
+            let constant = o & 0xfe00 == 0x0200;
+            let b = if constant {
+                cbuf(f(34, 5), f(20, 14))
+            } else {
+                operand(raw, state, false)
+            };
             let c = state[f(39, 8) as usize];
             // Register LUT28..35 and predicate48..50/mode36..37:
             // envytools gm107.c:2020,1391-1396; Ryujinx
@@ -1483,10 +1487,10 @@ pub fn reference(raw: u64, state: &[u32; WORDS]) -> Result<Expected, &'static st
             }
             if bit(47) {
                 out.zn(v);
-                // Register X38 propagates the entry zero flag.
-                // envytools gm107.c:2020; Ryujinx
+                // Register X38 / cbuf X56 propagates the entry zero flag.
+                // envytools gm107.c:2020,2169; Ryujinx
                 // InstEmitIntegerLogical.cs:118-136, InstEmitAluHelper.cs:102-116.
-                if register && bit(38) {
+                if register && bit(38) || constant && bit(56) {
                     out.words[264] &= state[264];
                 }
             }
@@ -3207,6 +3211,28 @@ fn extended_lop3_zero_uses_the_entry_flag() {
             reference(raw | 1 << 38, &state).unwrap().words[264],
             old_zero
         );
+    }
+}
+
+#[test]
+fn extended_cbuf_lop3_zero_uses_the_entry_flag() {
+    // Cbuf LOP3 X56/CC47: envytools gm107.c:2169 and Ryujinx
+    // InstDecoders.cs:3771-3780. The shared LOP3 extended flag operation is
+    // entry-Z && result-is-zero. LUT zero makes the expected result independent
+    // of the constant-buffer fixture and both register operands.
+    let base = 0x0200_u64 << 48 | 1 << 47 | 12 << 39 | 7 << 16 | 8 << 8 | 4;
+    let mut state = [0; WORDS];
+    state[263] = 1;
+    for old_zero in [0, 1] {
+        state[264] = old_zero;
+        assert_eq!(reference(base, &state).unwrap().words[264], 1);
+        assert_eq!(
+            reference(base | 1 << 56, &state).unwrap().words[264],
+            old_zero
+        );
+
+        let without_cc = base & !(1 << 47) | 1 << 56;
+        assert_eq!(reference(without_cc, &state).unwrap().words[264], old_zero);
     }
 }
 

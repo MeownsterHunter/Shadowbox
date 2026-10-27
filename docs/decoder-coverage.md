@@ -37,13 +37,14 @@ server and were skipped. CPU spirv-val validation is separate.
 
 These probes are the widest and weakest check. The stronger ones are
 in [decoder-methodology.md](decoder-methodology.md#current-measured-state):
-every encoding of 80 rows (all 79 with at most 24 free bits, and one
-with 28; 1,744,863,232 words) was compared with the vendor
-disassembler, with 0 missing words, 0 wrong admissions and 0
-misprints; the inference layouts predict 9,191 of 9,194 frozen
-held-out words exactly, and the shipped tables print the other 3
-exactly; and the decoder tables are written only when
-no word the disassembler rejects is decoded.
+the generated format table was compared with every encoding of 80
+rows (all 79 with at most 24 free bits, and one with 28;
+1,744,863,232 words), with 0 missing words, 0 wrong admissions and 0
+misprints. That historical run did not exercise hand-written decoder
+families. A separate real-decoder rerun has completed 53 of the 79
+ordinary rows (671,154,176 words) with 0 wrong admissions; VABSDIFF4
+has not been rerun. [Wide-row covering sets](decoder-wide-row-validation.md)
+are reported as sampled results, never exhaustive closure.
 
 301 OP8B rows, 36877 representative words.
 
@@ -343,10 +344,10 @@ no word the disassembler rejects is decoded.
 | `gm107.c:2166` | root / ffma32i | `0c00000000000000` / `fc00000000000000` | FFma | FFma (103) | 1 (1 reserved) | 0 | reserved: source table OOPS |
 | `gm107.c:2167` | root / fadd32i | `0800000000000000` / `fc00000000000000` | FAdd | FAdd (94) | 0 (0 reserved) | 0 |  |
 | `gm107.c:2168` | root / lop32i | `0400000000000000` / `fc00000000000000` | Lop | Lop (94) | 0 (0 reserved) | 0 |  |
-| `gm107.c:2169` | root / lop3 | `0200000000000000` / `fe00000000000000` | Lop3 | Lop3 (365) | 1 (0 reserved) | 0 | not implemented yet: instruction / operand / mode |
+| `gm107.c:2169` | root / lop3 | `0200000000000000` / `fe00000000000000` | Lop3 | Lop3 (366) | 0 (0 reserved) | 0 |  |
 | `gm107.c:2170` | root / mov32i | `0100000000000000` / `fff0000000000000` | Mov | Mov (88) | 0 (0 reserved) | 0 |  |
 | `gm107.c:2171` | root / OOPS | `0000000000000000` / `0000000000000000` | Padding | Padding (1) | 0 (0 reserved) | 1 |  |
-| `gm107.c:2175` | sched / sched | `0000000000000000` / `8000000000000000` | Padding | BitFieldExtract (1), FAdd (1), FSet (3), HalfArithmetic (3), IntegerMul (1), Lop (32), Lop3 (8), Mov (1), Padding (19) | 274 (0 reserved) | 0 | not implemented yet: instruction / operand / mode |
+| `gm107.c:2175` | sched / sched | `0000000000000000` / `8000000000000000` | Padding | BitFieldExtract (1), FAdd (1), FSet (3), HalfArithmetic (3), IntegerMul (1), Lop (32), Lop3 (16), Mov (1), Padding (19) | 266 (0 reserved) | 0 | not implemented yet: instruction / operand / mode |
 | `gm107.c:2176` | sched / OOPS | `0000000000000000` / `0000000000000000` | Padding | Padding (1) | 0 (0 reserved) | 1 |  |
-| `gm107.c:2180` | rootas / sched | `0000000000000000` / `8000000000000000` | Padding | BitFieldExtract (1), FAdd (1), FSet (3), HalfArithmetic (3), IntegerMul (1), Lop (32), Lop3 (8), Mov (1), Padding (19) | 274 (0 reserved) | 0 | not implemented yet: instruction / operand / mode |
-| `gm107.c:2181` | rootas / root dispatch | `0000000000000000` / `0000000000000000` | Mov | Atomic (1), BitFieldExtract (3), BitFieldInsert (4), Branch (1), CSet (1), CSetP (1), CacheControl (4), Call (1), CbufPushTarget (2), Convert (3), DoubleAdd (3), DoubleFma (4), DoubleMinMax (3), DoubleMultiply (3), DoubleSet (19), DoubleSetP (3), Exit (1), FAdd (18), FCmp (4), FFma (36), FMnMxSelect (3), FMul (4), FSet (86), FSetP (5), Flo (3), FunnelShift (4), GlobalAtomic (8), GlobalMemory (2), GroupMemoryBarrier (1), HalfArithmetic (120), HalfSet (38), IAdd (8), IAdd3 (6), ICmp (4), IMadSp (29), IMinMaxSelect (3), ISet (4), ISetP (3), IntegerMul (33), IsbeRead (1), Ldc (1), LocalLoad (1), LocalStore (1), Lop (6), Lop3 (31), Mov (5), MuFu (1), Nop (2), P2R (3), PSet (1), PSetP (1), Padding (1), PhysicalAttributeLoad (1), PopJump (5), Popc (3), Prmt (3), PushTarget (2), R2P (3), Rro (3), S2R (1), Schedule (2), Sel (3), SharedCompareExchange (2), SharedLoad (1), SharedStore (1), ShiftAdd (27), Shl (3), Shr (3), Shuffle (1), Surface (2), SurfaceAtomic (7), SwizzleAdd (1), Texture (33), VideoMinMax (28), VideoMultiplyAdd (16), VideoSetP (1), Vote (1), VoteVtg (1), Xmad (29) | 1366 (800 reserved) | 2 | not implemented yet: instruction / operand / mode; reserved: source table OOPS |
+| `gm107.c:2180` | rootas / sched | `0000000000000000` / `8000000000000000` | Padding | BitFieldExtract (1), FAdd (1), FSet (3), HalfArithmetic (3), IntegerMul (1), Lop (32), Lop3 (16), Mov (1), Padding (19) | 266 (0 reserved) | 0 | not implemented yet: instruction / operand / mode |
+| `gm107.c:2181` | rootas / root dispatch | `0000000000000000` / `0000000000000000` | Mov | Atomic (1), BitFieldExtract (3), BitFieldInsert (4), Branch (1), CSet (1), CSetP (1), CacheControl (4), Call (1), CbufPushTarget (2), Convert (3), DoubleAdd (3), DoubleFma (4), DoubleMinMax (3), DoubleMultiply (3), DoubleSet (19), DoubleSetP (3), Exit (1), FAdd (18), FCmp (4), FFma (36), FMnMxSelect (3), FMul (4), FSet (86), FSetP (5), Flo (3), FunnelShift (4), GlobalAtomic (8), GlobalMemory (2), GroupMemoryBarrier (1), HalfArithmetic (120), HalfSet (38), IAdd (8), IAdd3 (6), ICmp (4), IMadSp (29), IMinMaxSelect (3), ISet (4), ISetP (3), IntegerMul (33), IsbeRead (1), Ldc (1), LocalLoad (1), LocalStore (1), Lop (6), Lop3 (32), Mov (5), MuFu (1), Nop (2), P2R (3), PSet (1), PSetP (1), Padding (1), PhysicalAttributeLoad (1), PopJump (5), Popc (3), Prmt (3), PushTarget (2), R2P (3), Rro (3), S2R (1), Schedule (2), Sel (3), SharedCompareExchange (2), SharedLoad (1), SharedStore (1), ShiftAdd (27), Shl (3), Shr (3), Shuffle (1), Surface (2), SurfaceAtomic (7), SwizzleAdd (1), Texture (33), VideoMinMax (28), VideoMultiplyAdd (16), VideoSetP (1), Vote (1), VoteVtg (1), Xmad (29) | 1365 (800 reserved) | 2 | not implemented yet: instruction / operand / mode; reserved: source table OOPS |

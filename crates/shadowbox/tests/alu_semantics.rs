@@ -2789,10 +2789,14 @@ fn cbuf_lop3_all_truth_tables_execute_the_encoded_source() {
             let (regs, flags) = run(&[mov(2, a), mov(4, c), decoded(raw)], b);
             assert_eq!(regs[1], expected, "LUT={lut:02x} CC={cc}");
             assert_eq!(flags[..2], [cc && expected == 0, cc && expected >> 31 != 0]);
+            let extended = raw | (1 << 56);
             assert!(matches!(
-                decoded(raw | (1 << 56)),
-                InstructionKind::Unknown(ops::Unknown { .. })
+                decoded(extended),
+                InstructionKind::Lop3(ops::Lop3 { extended: true, .. })
             ));
+            let (regs, flags) = run(&[mov(2, a), mov(4, c), decoded(extended)], b);
+            assert_eq!(regs[1], expected, "LUT={lut:02x} CC={cc} X");
+            assert_eq!(flags[..2], [false, cc && expected >> 31 != 0]);
         }
     }
     let raw = (0x02f8u64 << 48) | (31 << 34) | (0x3fff << 20) | (254 << 39) | (7 << 16);
@@ -2808,6 +2812,33 @@ fn cbuf_lop3_all_truth_tables_execute_the_encoded_source() {
             ..
         })
     ));
+}
+
+#[test]
+fn cbuf_lop3_x_discovery_words_validate_raw_and_optimized_spirv() {
+    let header = headers::parse(&[0; 32]).unwrap();
+    for raw in [
+        0x0300_0600_0001_0804_u64,
+        0x0300_8600_0001_0804,
+        0x0300_7f80_0007_ffff,
+        0x0300_ff80_0007_ffff,
+    ] {
+        let instruction = decode_word([raw as u32, (raw >> 32) as u32], 0);
+        assert!(matches!(
+            instruction.kind,
+            InstructionKind::Lop3(ops::Lop3 { extended: true, .. })
+        ));
+        let mut module = emit_with_header(&[instruction], Some(&header)).unwrap();
+        for variant in ["raw", "optimized"] {
+            let validation = spirv_validation::validate(&module.words);
+            assert!(
+                validation.status.success(),
+                "{raw:016x} {variant}: {}",
+                String::from_utf8_lossy(&validation.stderr)
+            );
+            module.optimize();
+        }
+    }
 }
 
 #[test]

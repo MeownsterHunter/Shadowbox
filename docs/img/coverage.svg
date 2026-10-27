@@ -15,7 +15,7 @@
 <text x="136.2" y="258" fill="#8b949e" font-size="11" text-anchor="middle">2026-10-18 row sweep</text>
 <text x="288.8" y="258" fill="#8b949e" font-size="11" text-anchor="middle">2026-10-20 sweeps</text>
 <text x="441.2" y="258" fill="#8b949e" font-size="11" text-anchor="middle">+ inference (refined)</text>
-<text x="593.8" y="258" fill="#8b949e" font-size="11" text-anchor="middle">exhaustive rows</text>
+<text x="593.8" y="258" fill="#8b949e" font-size="11" text-anchor="middle">format-table exhaustive rows</text>
 <polyline fill="none" stroke="#2a78d6" stroke-width="2" points="136.2,140.5 288.8,137.8 441.2,108.6"/>
 <circle cx="136.2" cy="140.5" r="5" fill="#2a78d6"/>
 <text x="136.2" y="130.5" fill="#8b949e" font-size="12" font-weight="600" text-anchor="middle">52.4%</text>
@@ -33,11 +33,11 @@
 <polyline fill="none" stroke="#199e70" stroke-width="2" points="593.8,50.0"/>
 <circle cx="593.8" cy="50.0" r="5" fill="#199e70"/>
 <text x="593.8" y="69.0" fill="#8b949e" font-size="12" font-weight="600" text-anchor="middle">100.0%</text>
-<text x="607.8" y="40.0" fill="#8b949e" font-size="11">Exhaustive rows</text>
+<text x="607.8" y="40.0" fill="#8b949e" font-size="11">Format-table exhaustive rows</text>
 <text x="0" y="288" fill="#8b949e" font-size="11">Row-sweep words: ceiling = words nvdisasm accepts (1,208,600 on 2026-10-20, 1,160,675 in the 2026-10-18 sweep,</text>
 <text x="0" y="306" fill="#8b949e" font-size="11">   a slightly different word set). Opcode-space prefixes: ceiling = top-16-bit prefixes with an accepted word (43,725).</text>
 <text x="0" y="324" fill="#8b949e" font-size="11">Known = Shadowbox decodes it, or (last point) the refined inference layout predicts nvdisasm's text exactly.</text>
 <text x="0" y="342" fill="#8b949e" font-size="11">INVALID&lt;n&gt; text counts as a rejection. Encodings outside the swept words are not measured.</text>
-<text x="0" y="360" fill="#8b949e" font-size="11">Exhaustive rows: ceiling = words nvdisasm accepts among every encoding of 80 rows (79 with at most 24 free bits, one with 28)</text>
-<text x="0" y="378" fill="#8b949e" font-size="11">   (1,210,118,144 of 1,744,863,232); known = printed exactly. Missing 0, wrong admissions 0, misprints 0.</text>
+<text x="0" y="360" fill="#8b949e" font-size="11">Format-table exhaustive rows: ceiling = words nvdisasm accepts among every encoding of 80 rows (79 with at most 24 free bits, one with 28)</text>
+<text x="0" y="378" fill="#8b949e" font-size="11">   (1,210,118,144 of 1,744,863,232); known = the generated format table printed exactly. Missing 0, wrong admissions 0, misprints 0.</text>
 </svg>

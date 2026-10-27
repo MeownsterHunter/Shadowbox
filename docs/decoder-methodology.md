@@ -18,8 +18,8 @@ before it could not prove:
    layout from single-bit changes, then check it on words nobody has seen.
 
 A final check, [exhaustive enumeration](#exhaustive-enumeration), compares
-every encoding of each row with at most 24 free bits (and of one wider row)
-with the disassembler,
+the generated format table on every encoding of each row with at most 24 free
+bits (and of one wider row) with the disassembler,
 and [Current measured state](#current-measured-state) gives today's
 numbers.
 
@@ -540,7 +540,7 @@ text. Text containing `INVALID<n>` counts as a rejection throughout. That
 is why the opcode-space ceiling here (43,725 prefixes with an accepted
 word) is lower than the 48,122 prefixes the sweep report counts.
 
-![Line chart of coverage against a fixed ceiling. Row-sweep words: 52.4% at the 2026-10-18 sweep, 53.8% at the 2026-10-20 sweep, 69.1% after refined inference. Opcode-space prefixes: 33.8% at the 2026-10-20 sweep, 59.7% after refined inference. Exhaustive rows, against their own ceiling: 100.0%. A dashed line marks the 100% ceiling.](img/coverage.svg)
+![Line chart of coverage against a fixed ceiling. Row-sweep words: 52.4% at the 2026-10-18 sweep, 53.8% at the 2026-10-20 sweep, 69.1% after refined inference. Opcode-space prefixes: 33.8% at the 2026-10-20 sweep, 59.7% after refined inference. Format-table exhaustive rows, against their own ceiling: 100.0%. A dashed line marks the 100% ceiling.](img/coverage.svg)
 
 | Stage | Ceiling | Known after | Share of the remaining unknown it resolved | Raw rate |
 | --- | --- | --- | --- | --- |
@@ -631,24 +631,42 @@ take, and compare each answer with the decoder's.
 ### What it proves and what it cannot
 
 Within the enumerated rows and the two register choices this is a complete
-check, not a sample: every word was put to the oracle. Other register
+check of the generated format table, not a sample: every word was put to the
+oracle. Other register
 numbers are not enumerated; register fields are covered by field sampling
 and by inference. The other 251 of the 331 rows have more than 24 free
 bits and are not enumerated, so for them the sweeps and the held-out set below
 remain the evidence. Like every method here, it checks text, not what an
 instruction does.
 
+Six rows are outside even the planned wide-row tiers: source row 2171 has a
+zero mask and therefore 64 free bits, while BPT (1915), IDE (1916), RAM
+(1917), SAM (1918) and RTT (1919) each have 52 free bits.
+
 ## Current measured state
 
 These numbers were measured on the decoder tables this repository ships.
 
-- **Exhaustive enumeration.** All 79 rows with at most 24 free bits (13 to
+- **Format-table exhaustive enumeration.** All 79 rows with at most 24 free bits (13 to
   24) were enumerated, 1,207,992,320 words under both register choices, and
   VABSDIFF4, at 28 free bits, was enumerated in full on its own, 536,870,912
   words: 80 rows and 1,744,863,232 words in all. The oracle accepts
   1,210,118,144 of them, and every one is printed exactly (170,173,440
   through an overlapping row's format); it rejects 534,745,088, and every one
-  is rejected. Missing words 0, wrong admissions 0, misprints 0.
+  is rejected by the generated format table. Format-table missing words 0,
+  wrong admissions 0, misprints 0. This historical run did not call the
+  hand-written instruction families that run before the format table.
+- **Shipped-decoder rerun.** The production-decoder version of the exhaustive
+  rerun has completed 53 of the 79 ordinary rows: 671,154,176 words with 0
+  shipped-decoder wrong admissions. The run was paused before the remaining 26
+  rows, and VABSDIFF4 was not rerun. Its `rows.tsv` SHA-256 is
+  `b0fb1328276cf56d3d8d2118b2d5d4760d671704e26b5a8039cc8a6d440f4313`.
+  This is a partial result, not a claim over all 80 rows.
+- **Wide-row covering sets.** The checked-in
+  [wide-row ledger](../crates/shadowbox/tests/data/decoder-wide-results.tsv)
+  and [summary](decoder-wide-row-validation.md) report sampled T-way evidence.
+  They claim only the generated words recorded for each row, never closure of
+  the row's full encoding space.
 - **Held-out words.** The inference layouts predict the oracle's exact
   text for 9,191 of the 9,194 words of the
   frozen evaluation set
@@ -662,7 +680,8 @@ These numbers were measured on the decoder tables this repository ships.
   words exactly. Against its combined sweep ceiling of 428,753 accepted
   words in 43,767 prefixes, the tables know 420,846 words (98.2%) and
   43,327 prefixes (99.0%). The generator refuses to write tables if any
-  word the oracle rejects is decoded, by a format or a hand-written family.
+  word the oracle rejects is decoded by a generated format. Hand-written
+  families are checked by the separate production-decoder sweep.
   Its last measurement, recorded in the first line of
   [decoder-format-samples.tsv](../crates/shadowbox/tests/data/decoder-format-samples.tsv)
   and checked by the test suite, covered 401,539 rejected words with 0
